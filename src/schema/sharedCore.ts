@@ -27,10 +27,12 @@ export const companySection: SectionDef = {
     { name: 'employerPhone', label: "Employer's Telephone Number", type: 'tel', required: true },
     { name: 'employerFax', label: "Employer's Fax Number", type: 'tel' },
     { name: 'sendBillingsTo', label: 'Send Billings to', type: 'text' },
-    { name: 'dayToDayContact', label: 'Day to Day Contact', type: 'text' },
-    { name: 'brokerName', label: "Broker's Name", type: 'text' },
-    { name: 'brokerPhone', label: "Broker's Telephone Number", type: 'tel' },
-    { name: 'brokerEmail', label: "Broker's E-mail Address", type: 'email' },
+    // The financial advisor / broker, collected once here and reused by the
+    // Financial Advisor Setup form. (The "Day to Day Contact" datum is captured
+    // once as the Primary Plan Contact in the Plan Contacts section.)
+    { name: 'brokerName', label: 'Financial Advisor / Broker — Name', type: 'text' },
+    { name: 'brokerPhone', label: 'Financial Advisor / Broker — Telephone Number', type: 'tel' },
+    { name: 'brokerEmail', label: 'Financial Advisor / Broker — E-mail Address', type: 'email' },
   ],
 }
 
@@ -62,6 +64,8 @@ export const existingPlanSection: SectionDef = {
     { name: 'payrollProvider', label: 'Payroll Provider / Contact', type: 'text' },
     { name: 'payrollContactInternal', label: 'Payroll Contact within your Company', type: 'text' },
     { name: 'payrollContactEmail', label: 'Payroll Contact Email', type: 'email' },
+    // Prior TPA appears unconditionally on all five source questionnaires (it captures
+    // the incumbent recordkeeper being replaced), so it is not gated on anotherQualifiedPlan.
     { name: 'priorTpa', label: 'Prior TPA / Recordkeeper', type: 'text' },
   ],
 }

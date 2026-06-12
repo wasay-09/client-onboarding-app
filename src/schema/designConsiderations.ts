@@ -88,6 +88,9 @@ export const designSection: SectionDef = {
     { name: 'oneTimeDeferralOnBonus', label: 'Allow Special One-Time Deferral Elections on Bonus Compensation?', type: 'yesno', required: true },
     { name: 'allowRoth', label: 'Allow for Roth 401(k)?', type: 'yesno', required: true },
     { name: 'commenceDeferralsAfterEligible', label: 'Commence Deferrals after eligible', type: 'radio', required: true, allowOther: true, options: FREQ },
+    // Auto-enrollment election. When "Yes", the dedicated Automatic Enrollment section
+    // (operational.ts) is shown so the client can configure the STP auto-enroll job.
+    { name: 'autoEnrollment', label: 'Will the Plan include Automatic Enrollment?', type: 'yesno', required: true, help: 'If yes, you will complete an Automatic Enrollment setup section later in this flow.' },
 
     // --- Employer match (conditional) ---
     { name: 'employerMatch', label: 'Shall there be an Employer Match?', type: 'yesno', required: true },
@@ -101,7 +104,7 @@ export const designSection: SectionDef = {
     },
     { name: 'matchingHours', label: 'Hours required to share in Matching', type: 'radio', required: true, options: HOURS, showWhen: { field: 'employerMatch', equals: 'Yes' } },
     { name: 'matchingForfeitureAdminFirst', label: 'Forfeitures from Matching — use to pay Administrative Expenses FIRST?', type: 'yesno', showWhen: { field: 'employerMatch', equals: 'Yes' } },
-    { name: 'matchingForfeitureThen', label: 'Forfeitures from Matching — THEN', type: 'radio', options: FORFEITURE_THEN, showWhen: { field: 'employerMatch', equals: 'Yes' } },
+    { name: 'matchingForfeitureThen', label: 'Forfeitures from Matching — THEN', type: 'radio', required: true, options: FORFEITURE_THEN, showWhen: { field: 'employerMatch', equals: 'Yes' } },
 
     // --- Profit sharing (conditional) ---
     { name: 'profitSharingOffered', label: 'Will the Plan include a Profit Sharing Contribution?', type: 'yesno', required: true },
@@ -112,10 +115,10 @@ export const designSection: SectionDef = {
         { value: 'Cross Tested Profit Sharing', label: 'Cross Tested Profit Sharing' },
       ],
     },
-    { name: 'profitSharingPctTWB', label: '% of Taxable Wage Base', type: 'text', placeholder: 'e.g. 5.7%', showWhen: { field: 'profitSharingOffered', equals: 'Yes' } },
+    { name: 'profitSharingPctTWB', label: '% of Taxable Wage Base', type: 'text', placeholder: 'e.g. 5.7%', showWhen: { field: 'profitSharingBasis', equals: 'Integrated with Social Security' } },
     { name: 'profitSharingHours', label: 'Hours required to share in Profit Sharing', type: 'radio', options: HOURS, showWhen: { field: 'profitSharingOffered', equals: 'Yes' } },
     { name: 'profitSharingForfeitureAdminFirst', label: 'Forfeitures from Profit Sharing — use to pay Administrative Expenses FIRST?', type: 'yesno', showWhen: { field: 'profitSharingOffered', equals: 'Yes' } },
-    { name: 'profitSharingForfeitureThen', label: 'Forfeitures from Profit Sharing — THEN', type: 'radio', options: FORFEITURE_THEN, showWhen: { field: 'profitSharingOffered', equals: 'Yes' } },
+    { name: 'profitSharingForfeitureThen', label: 'Forfeitures from Profit Sharing — THEN', type: 'radio', required: true, options: FORFEITURE_THEN, showWhen: { field: 'profitSharingOffered', equals: 'Yes' } },
     { name: 'profitSharingCompensation', label: 'Compensation counted', type: 'radio', showWhen: { field: 'profitSharingOffered', equals: 'Yes' },
       options: [
         { value: 'From Date of Participation Only (typical)', label: 'From Date of Participation Only (typical)' },
@@ -126,7 +129,7 @@ export const designSection: SectionDef = {
     // --- Loans & distributions ---
     { name: 'loans', label: 'Loans to Participants?', type: 'yesno', required: true },
     { name: 'refinanceLoans', label: 'Refinance Loans?', type: 'yesno', required: true },
-    { name: 'loanLimitations', label: 'Limitations on Loans', type: 'radio', showWhen: { field: 'loans', equals: 'Yes' },
+    { name: 'loanLimitations', label: 'Limitations on Loans', type: 'radio', required: true, showWhen: { field: 'loans', equals: 'Yes' },
       options: [
         { value: 'For Hardship reasons only', label: 'For Hardship reasons only' },
         { value: 'Minimum loan of $1,000.00 (typical)', label: 'Minimum loan of $1,000.00 (typical)' },
@@ -163,7 +166,7 @@ export const designSection: SectionDef = {
         { value: 'Safe Harbor Matching Formula', label: 'Safe Harbor Matching Formula' },
       ],
     },
-    { name: 'safeHarborMatchFormula', label: 'Safe Harbor Matching Formula', type: 'radio', showWhen: { field: 'safeHarborType', equals: 'Safe Harbor Matching Formula' },
+    { name: 'safeHarborMatchFormula', label: 'Safe Harbor Matching Formula', type: 'radio', required: true, showWhen: { field: 'safeHarborType', equals: 'Safe Harbor Matching Formula' },
       options: [
         { value: '100% on the first 4%', label: '100% on the first 4%' },
         { value: '100% on the first 3% and 50% on the next 2%', label: '100% on the first 3% and 50% on the next 2%' },

@@ -41,12 +41,15 @@ const design: FormValues = {
   oneTimeDeferralOnBonus: 'No',
   allowRoth: 'Yes',
   commenceDeferralsAfterEligible: 'Monthly',
+  autoEnrollment: 'No',
   employerMatch: 'Yes',
   matchingFormula: '50% on the first 6%',
   matchingFrequency: 'Per Payroll Period',
   matchingHours: 'None (typical)',
+  matchingForfeitureThen: 'Used to Reduce future contributions (typical)',
   profitSharingOffered: 'No',
   loans: 'Yes',
+  loanLimitations: 'Minimum loan of $1,000.00 (typical)',
   refinanceLoans: 'No',
   transfersFromOtherPlan: 'No',
   hardshipDistributions: 'From Employee Deferrals Only (typical)',
@@ -57,11 +60,45 @@ const design: FormValues = {
   adpAcpTestingMethod: 'Prior Year',
 }
 
+// Required fields contributed by the operational sections, by section id.
+const planSetupData: FormValues = { newOrExistingPlan: 'New' }
+const contactsData: FormValues = {
+  primaryContactName: 'John Smith',
+  primaryContactEmail: 'john@acme.com',
+  primaryContactPhone: '555-222-3333',
+  primaryIsAuthorizedSigner: 'Yes',
+}
+const payrollData: FormValues = {
+  separateDivisions: 'No',
+  payrollFrequency: 'Bi-Weekly',
+  payrollWhenPaid: 'Friday',
+}
+const advisorData: FormValues = {
+  advisorFirmName: 'Acme Advisors LLC',
+  advisorFeeArrangement: 'Option 2 — Fee-Based (advisor invoices)',
+}
+const fundsData: FormValues = {
+  defaultFundType: 'Single fund or Model Portfolios',
+  fundLineup: JSON.stringify([
+    { ticker: 'VFIAX', fundName: 'Vanguard 500 Index', cusip: '922908710', etf: 'No', notes: '' },
+  ]),
+}
+
 let failures = 0
 
 for (const plan of PLANS) {
-  const hasDesign = plan.sections.some((s) => s.id === 'design')
-  const values: FormValues = hasDesign ? { ...base, ...design } : { ...base }
+  const has = (id: string) => plan.sections.some((s) => s.id === id)
+  const hasDesign = has('design')
+  const values: FormValues = {
+    ...base,
+    ...(hasDesign ? design : {}),
+    ...(has('soloConfig') ? { soloValuationType: 'daily' } : {}),
+    ...(has('planSetup') ? planSetupData : {}),
+    ...(has('contacts') ? contactsData : {}),
+    ...(has('payroll') ? payrollData : {}),
+    ...(has('advisor') ? advisorData : {}),
+    ...(has('funds') ? fundsData : {}),
+  }
 
   // 1) empty data should produce errors; full data should be clean.
   const emptyErrors = validate(plan.sections, {})
