@@ -57,12 +57,14 @@ function TableFieldView({ field, values }: { field: FieldDef; values: FormValues
   )
 }
 
-export function QuestionnairePdf({ planType, values }: Props) {
+/** The Onboarding Summary as standalone Page(s) — reused by both the dedicated
+ *  QuestionnairePdf document and the combined OnboardingPackagePdf. */
+export function QuestionnairePages({ planType, values }: Props) {
   const plan = getPlan(planType)
   const byName = indexFields(plan.sections)
 
   return (
-    <Document title={`${plan.name} Onboarding Summary`}>
+    <>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.brand}>Retirement Plan Onboarding</Text>
@@ -100,6 +102,15 @@ export function QuestionnairePdf({ planType, values }: Props) {
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>
+    </>
+  )
+}
+
+export function QuestionnairePdf({ planType, values }: Props) {
+  const plan = getPlan(planType)
+  return (
+    <Document title={`${plan.name} Onboarding Summary`}>
+      <QuestionnairePages planType={planType} values={values} />
     </Document>
   )
 }

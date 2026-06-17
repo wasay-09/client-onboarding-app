@@ -4,7 +4,12 @@ import type { FormValues } from './schema/visibility'
 import { getPlan } from './schema/plans'
 import { PlanPicker } from './components/PlanPicker'
 import { QuestionnaireForm } from './components/QuestionnaireForm'
-import { downloadQuestionnairePdf, downloadServiceAgreementPdf, hasSla } from './pdf/generatePdf'
+import {
+  downloadQuestionnairePdf,
+  downloadServiceAgreementPdf,
+  downloadOnboardingPackagePdf,
+  hasSla,
+} from './pdf/generatePdf'
 
 type Step = 'pick' | 'fill' | 'done'
 
@@ -13,7 +18,6 @@ export default function App() {
   const [planType, setPlanType] = useState<PlanType | null>(null)
   const [values, setValues] = useState<FormValues>({})
   const [fileName, setFileName] = useState('')
-  const [slaFileName, setSlaFileName] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function complete(data: FormValues) {
@@ -21,12 +25,11 @@ export default function App() {
     setValues(data)
     setBusy(true)
     try {
-      // Onboarding summary PDF is the primary deliverable — its failure surfaces the error.
-      // The Service Agreement was already generated and acknowledged earlier in the flow,
-      // so it is offered here only as a re-download (for SLA plan types).
-      const qName = await downloadQuestionnairePdf(planType, data)
-      setFileName(qName)
-      setSlaFileName(hasSla(planType) ? 'Service Agreement (reviewed earlier)' : null)
+      // The combined Onboarding Package (execution/certification cover + Service
+      // Agreement, if any + Onboarding Summary) is the primary deliverable — its
+      // failure surfaces the error. Individual documents stay available below.
+      const pkgName = await downloadOnboardingPackagePdf(planType, data)
+      setFileName(pkgName)
       setStep('done')
     } finally {
       setBusy(false)
@@ -38,8 +41,11 @@ export default function App() {
     setPlanType(null)
     setValues({})
     setFileName('')
-    setSlaFileName(null)
   }
+
+  // Service Agreement execution status, for the confirmation screen.
+  const saSigned = values.slaAcknowledged === 'Yes' && values.slaSignerAuthorized === 'Yes'
+  const saPendingSigner = values.slaSignerAuthorized === 'No' ? (values.slaDelegateName || 'your authorized signer') : null
 
   return (
     <div className="min-h-full flex flex-col bg-slate-50">
@@ -95,10 +101,10 @@ export default function App() {
               </div>
 
               <h1 className="mt-6 text-3xl font-extrabold text-navy tracking-tight">
-                Onboarding Details Submitted!
+                Onboarding Submitted!
               </h1>
               <p className="mt-3 text-slate-500 text-sm max-w-lg mx-auto leading-relaxed">
-                Your onboarding summary for the <span className="font-bold text-navy">{getPlan(planType).name}</span> has been compiled and downloaded successfully.
+                Your onboarding package for the <span className="font-bold text-navy">{getPlan(planType).name}</span> has been compiled and downloaded. It bundles your Service Agreement and onboarding summary behind an execution &amp; certification cover page.
               </p>
 
               {/* Download File Detail Cards */}
@@ -109,19 +115,21 @@ export default function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <div className="text-left">
-                      <span className="text-[10px] text-slate-400 block">Questionnaire</span>
+                      <span className="text-[10px] text-slate-400 block">Onboarding Package</span>
                       <span className="truncate max-w-[250px] sm:max-w-[400px] font-bold text-slate-800">{fileName}</span>
                     </div>
                   </div>
                 )}
-                {slaFileName && (
-                  <div className="inline-flex items-center gap-2.5 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs font-semibold text-slate-600 shadow-sm max-w-full">
-                    <svg className="h-5 w-5 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                {hasSla(planType) && (
+                  <div className={`inline-flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-xs font-semibold shadow-sm max-w-full ${saSigned ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                    <span className="text-base leading-none shrink-0">{saSigned ? '✓' : '⏳'}</span>
                     <div className="text-left">
-                      <span className="text-[10px] text-slate-400 block">Service Agreement</span>
-                      <span className="truncate max-w-[250px] sm:max-w-[400px] font-bold text-slate-800">Reviewed &amp; acknowledged earlier — re-download below</span>
+                      <span className="text-[10px] opacity-70 block">Service Agreement</span>
+                      <span className="font-bold">
+                        {saSigned
+                          ? 'Signed electronically'
+                          : `Pending signature — routed to ${saPendingSigner}`}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -138,8 +146,17 @@ export default function App() {
                       <div className="flex gap-3">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 text-xs font-bold shrink-0">1</div>
                         <div>
-                          <span className="text-sm font-bold text-navy block">Print &amp; Return the Signed Service Agreement</span>
-                          <span className="text-xs text-slate-400">You reviewed and acknowledged the Service Agreement at the start of this flow. Print the downloaded copy, sign it, and return it to FBSI.</span>
+                          {saSigned ? (
+                            <>
+                              <span className="text-sm font-bold text-navy block">Service Agreement Signed</span>
+                              <span className="text-xs text-slate-400">You signed the Service Agreement electronically. A signed copy is included in your package — no further action needed.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-bold text-navy block">Service Agreement Awaiting Signature</span>
+                              <span className="text-xs text-slate-400">We’ll send the Service Agreement to {saPendingSigner} for electronic signature. Onboarding proceeds once it is signed and returned.</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-3">
@@ -188,17 +205,23 @@ export default function App() {
               {/* Action Buttons */}
               <div className="mt-10 flex flex-wrap justify-center gap-3 border-t border-slate-100 pt-8">
                 <button
+                  onClick={() => downloadOnboardingPackagePdf(planType, values)}
+                  className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
+                >
+                  Re-download Package
+                </button>
+                <button
                   onClick={() => downloadQuestionnairePdf(planType, values)}
                   className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
                 >
-                  Re-download Questionnaire
+                  Summary only
                 </button>
                 {hasSla(planType) && (
                   <button
                     onClick={() => downloadServiceAgreementPdf(planType, values)}
                     className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
                   >
-                    Re-download Service Agreement
+                    Service Agreement only
                   </button>
                 )}
                 <button

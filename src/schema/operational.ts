@@ -21,6 +21,7 @@ import type { SectionDef } from '../types'
 export const planSetupSection: SectionDef = {
   id: 'planSetup',
   title: 'Plan Setup (Recordkeeper)',
+  party: 'Primary / Payroll Contact',
   description:
     'Recordkeeping details required to establish the plan on the platform. Company, EIN, plan name and dates already provided are reused automatically.',
   fields: [
@@ -68,6 +69,7 @@ export const planSetupSection: SectionDef = {
 export const contactsSection: SectionDef = {
   id: 'contacts',
   title: 'Plan Contacts & Roles',
+  party: 'Primary / Payroll Contact',
   description:
     'The people FBSI will work with on the plan, and the roles assigned to each. The Primary Plan Contact receives all role notifications by default.',
   fields: [
@@ -112,6 +114,7 @@ const PAYROLL_FREQ = [
 export const payrollSection: SectionDef = {
   id: 'payroll',
   title: 'Payroll Data',
+  party: 'Primary / Payroll Contact',
   description: 'How payroll is run, so FBSI can format the payroll import and set up ACH funding.',
   fields: [
     { name: 'separateDivisions', label: 'Does the plan provide payroll/funding for separate companies or divisions?', type: 'yesno', required: true },
@@ -153,6 +156,7 @@ export const payrollSection: SectionDef = {
 export const advisorSection: SectionDef = {
   id: 'advisor',
   title: 'Financial Advisor Setup',
+  party: 'Financial Advisor',
   description:
     'The advisor’s firm, additional contacts, and how the advisor’s compensation is arranged. The primary advisor is the Financial Advisor (Broker) named in Company Information — not re-asked here.',
   fields: [
@@ -225,6 +229,7 @@ export const advisorSection: SectionDef = {
 export const fundsSection: SectionDef = {
   id: 'funds',
   title: 'Fund Setup',
+  party: 'Financial Advisor',
   description: 'The plan’s investment lineup, default fund(s), and (if applicable) Broker of Record.',
   fields: [
     {
@@ -276,6 +281,7 @@ export const fundsSection: SectionDef = {
 export const autoEnrollSection: SectionDef = {
   id: 'autoEnroll',
   title: 'Automatic Enrollment',
+  party: 'Primary / Payroll Contact',
   description: 'Automatic enrollment settings for the STP auto-enroll job.',
   showWhen: { field: 'autoEnrollment', equals: 'Yes' },
   fields: [
@@ -338,6 +344,7 @@ export const autoEnrollSection: SectionDef = {
 export const censusSection: SectionDef = {
   id: 'census',
   title: 'Employee Census',
+  party: 'Primary / Payroll Contact',
   description:
     'Employee data required to set up the plan. You can enter employees here or submit the census file separately — Email Address and Birth Date must be included for every employee.',
   fields: [

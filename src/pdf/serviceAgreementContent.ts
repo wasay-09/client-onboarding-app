@@ -20,16 +20,27 @@ export function selectSlaTemplate(planType: PlanType, values: FormValues): SlaTe
   return 'standard'
 }
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** Human-readable UTC timestamp for audit lines, e.g. "June 17, 2026 at 14:32 UTC". */
+export function formatTimestamp(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const mm = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()} at ${hh}:${mm} UTC`
+}
+
 export function parseSlaDate(iso: string): { day: string; month: string; year: string } {
   if (!iso) return { day: '____', month: '____________', year: '____' }
   const parts = iso.split('-')
   if (parts.length !== 3) return { day: '____', month: '____________', year: '____' }
   const [y, m, d] = parts
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ]
-  const monthName = months[parseInt(m, 10) - 1] ?? '____________'
+  const monthName = MONTHS[parseInt(m, 10) - 1] ?? '____________'
   return { day: String(parseInt(d, 10)), month: monthName, year: y }
 }
 

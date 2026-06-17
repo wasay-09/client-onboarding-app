@@ -4,6 +4,7 @@ import { getPlan } from '../schema/plans'
 import type { FormValues } from '../schema/visibility'
 import { QuestionnairePdf } from './QuestionnairePdf'
 import { ServiceAgreementPdf } from './ServiceAgreementPdf'
+import { OnboardingPackagePdf } from './OnboardingPackagePdf'
 import { selectSlaTemplate, hasSla } from './serviceAgreementContent'
 
 /** Build the questionnaire PDF, trigger a browser download, and return the file name used. */
@@ -33,6 +34,20 @@ export async function downloadServiceAgreementPdf(planType: PlanType, values: Fo
     : template === 'solo-rk' ? 'SoloRK'
     : 'RK-TPA'
   const fileName = `${safePlanName}-${plan.short.replace(/[^\w]+/g, '')}-ServiceAgreement-${templateSuffix}.pdf`
+
+  triggerDownload(blob, fileName)
+  return fileName
+}
+
+/** Build the combined Onboarding Package PDF (execution/certification cover +
+ *  Service Agreement, if any + Onboarding Summary), download it, and return the
+ *  file name used. This is the single courtesy copy offered at the end of the flow. */
+export async function downloadOnboardingPackagePdf(planType: PlanType, values: FormValues): Promise<string> {
+  const blob = await pdf(<OnboardingPackagePdf planType={planType} values={values} />).toBlob()
+
+  const plan = getPlan(planType)
+  const safePlanName = (values.planName || 'Plan').replace(/[^\w-]+/g, '_').slice(0, 60)
+  const fileName = `${safePlanName}-${plan.short.replace(/[^\w]+/g, '')}-OnboardingPackage.pdf`
 
   triggerDownload(blob, fileName)
   return fileName

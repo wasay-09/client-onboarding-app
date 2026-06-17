@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -12,6 +12,10 @@
   }
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    /* Inter OpenType refinements: contextual alternates + tabular figures so the
+       fee/amount columns and dates align cleanly in this finance-facing UI. */
+    font-feature-settings: 'cv11', 'ss01';
+    font-variant-numeric: tabular-nums;
   }
 }
 

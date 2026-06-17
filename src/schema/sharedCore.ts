@@ -14,6 +14,7 @@ const ENTITY_TYPES = [
 export const companySection: SectionDef = {
   id: 'company',
   title: 'Company / Employer Information',
+  party: 'Employer / Plan Sponsor',
   fields: [
     { name: 'companyName', label: 'Company Name', type: 'text', required: true },
     { name: 'companyAddress', label: 'Company Address', type: 'textarea', required: true },
@@ -39,6 +40,7 @@ export const companySection: SectionDef = {
 export const planIdSection: SectionDef = {
   id: 'planId',
   title: 'Plan Identification',
+  party: 'Employer / Plan Sponsor',
   fields: [
     { name: 'planName', label: 'Plan Name', type: 'text', required: true },
     { name: 'planTrustee', label: 'Plan Trustee', type: 'text', required: true },
@@ -52,6 +54,7 @@ export const planIdSection: SectionDef = {
 export const existingPlanSection: SectionDef = {
   id: 'existingPlan',
   title: 'Existing Plan Information',
+  party: 'Employer / Plan Sponsor',
   fields: [
     { name: 'anotherQualifiedPlan', label: 'Does Company have another qualified plan?', type: 'yesno', required: true },
     {

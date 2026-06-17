@@ -59,6 +59,17 @@ export interface FieldDef {
   addRowLabel?: string
 }
 
+/**
+ * Who, in a real onboarding, typically supplies a section's data. Groundwork for
+ * later-phase multi-party routing/assignment (see specs/) — today it only drives a
+ * "typically completed by" hint in the form. The legal *signer* is captured
+ * separately at the Service Agreement step; this is about data entry, not signature.
+ */
+export type Party =
+  | 'Employer / Plan Sponsor'
+  | 'Primary / Payroll Contact'
+  | 'Financial Advisor'
+
 export interface SectionDef {
   id: string
   title: string
@@ -67,6 +78,8 @@ export interface SectionDef {
   fields: FieldDef[]
   /** Conditional visibility for the whole section (skips the step + validation + PDF). */
   showWhen?: ShowWhen
+  /** The party who typically completes this section (collaboration groundwork). */
+  party?: Party
 }
 
 /** Suffix used for the companion free-text input of an "Other" radio choice. */

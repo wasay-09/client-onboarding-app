@@ -1,9 +1,9 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
 import type { PlanType } from '../types'
 import type { FormValues } from '../schema/visibility'
 import {
   ARTICLES, RK_TIERS, EXPENSE_ROWS,
-  getSlaFees, parseSlaDate, selectSlaTemplate,
+  getSlaFees, parseSlaDate, selectSlaTemplate, formatTimestamp,
 } from './serviceAgreementContent'
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -42,6 +42,8 @@ const S = StyleSheet.create({
   sigLineCap: { fontSize: 8, color: '#64748b', marginBottom: 2 },
   sigLineValue: { fontSize: 9, fontFamily: 'Helvetica-Bold', minHeight: 14, borderBottom: '0.5 solid #0f172a', paddingBottom: 2 },
   sigLineBlank: { minHeight: 14, borderBottom: '0.5 solid #0f172a' },
+  sigLineImage: { height: 28, objectFit: 'contain', objectPositionX: 0, borderBottom: '0.5 solid #0f172a', paddingBottom: 2 },
+  sigNote: { fontSize: 7, color: '#3B6FF5', fontFamily: 'Helvetica-Oblique', marginTop: 4 },
   exhibitDivider: {
     marginTop: 24, marginBottom: 16,
     borderTop: '2 solid #030D28', paddingTop: 10,
@@ -94,11 +96,13 @@ function Bullet({ text }: { text: string }) {
   )
 }
 
-function SignatureLine({ cap, value }: { cap: string; value?: string }) {
+function SignatureLine({ cap, value, image }: { cap: string; value?: string; image?: string }) {
   return (
     <View style={S.sigLineGroup}>
       <Text style={S.sigLineCap}>{cap}</Text>
-      {value
+      {image
+        ? <Image src={image} style={S.sigLineImage} />
+        : value
         ? <Text style={S.sigLineValue}>{value}</Text>
         : <View style={S.sigLineBlank} />
       }
@@ -106,15 +110,20 @@ function SignatureLine({ cap, value }: { cap: string; value?: string }) {
   )
 }
 
-function SignatureBlock({ label, trustee }: { label: string; trustee?: string }) {
+function SignatureBlock({
+  label, printName, signature, signatureImage, date, note,
+}: {
+  label: string; printName?: string; signature?: string; signatureImage?: string; date?: string; note?: string
+}) {
   return (
     <View style={S.sigRow}>
       <Text style={S.sigLabel}>{label}</Text>
       <View style={S.sigLineRow}>
-        <SignatureLine cap="(Print)" value={trustee} />
-        <SignatureLine cap="Signature" />
-        <SignatureLine cap="Date" />
+        <SignatureLine cap="(Print)" value={printName} />
+        <SignatureLine cap="Signature" value={signature} image={signatureImage} />
+        <SignatureLine cap="Date" value={date} />
       </View>
+      {note ? <Text style={S.sigNote}>{note}</Text> : null}
     </View>
   )
 }
@@ -373,7 +382,11 @@ interface Props {
   values: FormValues
 }
 
-export function ServiceAgreementPdf({ planType, values }: Props) {
+/** The Service Agreement as standalone Page(s) — reused by both the dedicated
+ *  ServiceAgreementPdf document and the combined OnboardingPackagePdf. When the
+ *  Plan Sponsor's authorized signer has e-signed in the portal, the execution
+ *  blocks reflect that signature; otherwise they print blank for wet signing. */
+export function ServiceAgreementPages({ planType, values }: Props) {
   const template = selectSlaTemplate(planType, values)
   const { day, month, year } = parseSlaDate(values.planEffectiveDate ?? '')
   const employer = values.companyName || '________________________________'
@@ -383,8 +396,26 @@ export function ServiceAgreementPdf({ planType, values }: Props) {
   const { isRkTemplate, serviceDescription, templateLabel, annualAdmin, perParticipant, planDocFee, restateFee } =
     getSlaFees(template)
 
+  // Electronic signature, captured at the Service Agreement step (authorized-signer path).
+  const eSigned = values.slaAcknowledged === 'Yes' && values.slaSignerAuthorized === 'Yes'
+  const signerName = (values.slaSignerName || '').trim() || trustee
+  const signerTitle = (values.slaSignerTitle || '').trim()
+  const signedDate = formatTimestamp(values.slaSignedAt)
+  const sigImage = (values.slaSignatureImage || '').trim()
+  const eSig = eSigned
+    ? {
+        printName: signerName,
+        // Embed the typed/drawn signature image when present; else fall back to the
+        // conformed-signature convention (/s/ Name).
+        signatureImage: sigImage || undefined,
+        signature: sigImage ? undefined : `/s/ ${signerName}`,
+        date: signedDate,
+        note: `Signed electronically${signerTitle ? ` as ${signerTitle}` : ''} via the FBSI onboarding portal. E-SIGN/UETA consent on record.`,
+      }
+    : { printName: trustee }
+
   return (
-    <Document title={`${planName} Service Agreement`}>
+    <>
       <Page size="LETTER" style={S.page}>
         {/* ── Header ── */}
         <View style={S.header}>
@@ -439,7 +470,7 @@ export function ServiceAgreementPdf({ planType, values }: Props) {
           By executing the Agreement, the Plan Sponsor agrees and acknowledges that it has reviewed the Agreement and is legally authorized to enter into this Agreement on behalf of the Plan.
         </Text>
         <View style={S.sigBlock}>
-          <SignatureBlock label="Employer" trustee={trustee} />
+          <SignatureBlock label="Employer" {...eSig} />
           <SignatureBlock label="Plan Sponsor (if different than Employer)" />
         </View>
 
@@ -471,7 +502,7 @@ export function ServiceAgreementPdf({ planType, values }: Props) {
           <Text style={[S.secBody, { marginBottom: 8 }]}>
             By executing below, the Plan Sponsor agrees and acknowledges the above stated fees and is legally authorized to enter into this Agreement and acknowledges and agrees to this Exhibit A.
           </Text>
-          <SignatureBlock label="Plan Sponsor" trustee={trustee} />
+          <SignatureBlock label="Plan Sponsor" {...eSig} />
         </View>
 
         {/* Service descriptions */}
@@ -492,6 +523,15 @@ export function ServiceAgreementPdf({ planType, values }: Props) {
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>
+    </>
+  )
+}
+
+export function ServiceAgreementPdf({ planType, values }: Props) {
+  const planName = values.planName || 'Plan'
+  return (
+    <Document title={`${planName} Service Agreement`}>
+      <ServiceAgreementPages planType={planType} values={values} />
     </Document>
   )
 }
