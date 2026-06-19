@@ -1,8 +1,18 @@
 import type { FormValues, PlanType } from '@fbsi/shared'
+import { supabase } from './supabase'
 
 // The web app talks ONLY to our own API (never the DB directly). Configurable via
 // VITE_API_URL; defaults to the local dev API.
 const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001').replace(/\/$/, '')
+
+// Attach the signed-in user's Supabase JWT so the API can authenticate + scope the
+// request to their data. Empty when auth isn't configured (local dev + AUTH_BYPASS).
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!supabase) return {}
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { authorization: `Bearer ${token}` } : {}
+}
 
 export interface CreatedCase {
   id: string
@@ -30,15 +40,21 @@ export class ApiError extends Error {
   }
 }
 
-/** Absolute URL to a case's stored PDF (server-made), for download links. */
-export function pdfDownloadUrl(caseId: string): string {
-  return `${API_URL}/api/cases/${caseId}/pdf`
+/** Fetch a case's server-made PDF WITH the auth header and open it in a new tab.
+ *  A plain <a href> can't carry the bearer token, so the protected PDF route needs
+ *  this fetch-to-blob path. */
+export async function openCasePdf(caseId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/cases/${caseId}/pdf`, { headers: await authHeaders() })
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  const url = URL.createObjectURL(await res.blob())
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000) // let the new tab load first
 }
 
 export async function createCase(planType: PlanType, answers: FormValues): Promise<CreatedCase> {
   const res = await fetch(`${API_URL}/api/cases`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({ planType, answers }),
   })
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
@@ -46,7 +62,7 @@ export async function createCase(planType: PlanType, answers: FormValues): Promi
 }
 
 export async function getCase(id: string): Promise<LoadedCase> {
-  const res = await fetch(`${API_URL}/api/cases/${id}`)
+  const res = await fetch(`${API_URL}/api/cases/${id}`, { headers: await authHeaders() })
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
   return res.json()
 }

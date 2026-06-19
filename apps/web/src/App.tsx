@@ -9,11 +9,13 @@ import {
 } from '@fbsi/shared'
 import { PlanPicker } from './components/PlanPicker'
 import { QuestionnaireForm } from './components/QuestionnaireForm'
-import { createCase, getCase, pdfDownloadUrl } from './api'
+import { ApiError, createCase, getCase, openCasePdf } from './api'
+import { useAuth } from './auth-context'
 
 type Step = 'pick' | 'fill' | 'done'
 
 export default function App() {
+  const { authEnabled, email, signOut } = useAuth()
   const [step, setStep] = useState<Step>('pick')
   const [planType, setPlanType] = useState<PlanType | null>(null)
   const [values, setValues] = useState<FormValues>({})
@@ -55,6 +57,13 @@ export default function App() {
         window.location.hash = `case=${created.id}`
         setFileName('')
       } catch (err) {
+        // An auth failure means the session expired — re-prompt sign-in rather than
+        // silently producing an un-persisted local PDF. Only fall back to local
+        // generation for genuine connectivity errors.
+        if (authEnabled && err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          await signOut()
+          return
+        }
         console.warn('API unavailable — generating the package locally instead.', err)
         setCaseId(null)
         setFileName(await downloadOnboardingPackagePdf(planType, data))
@@ -100,6 +109,20 @@ export default function App() {
             <span>Client Portal</span>
             <span className="h-3 w-px bg-slate-200" />
             <span className="text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 font-bold">Phase 2</span>
+            {authEnabled && email && (
+              <>
+                <span className="h-3 w-px bg-slate-200" />
+                <span className="text-slate-500 max-w-[160px] truncate" title={email}>
+                  {email}
+                </span>
+                <button
+                  onClick={() => signOut()}
+                  className="text-slate-400 hover:text-navy font-bold transition-colors"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -236,14 +259,12 @@ export default function App() {
               {/* Action Buttons */}
               <div className="mt-10 flex flex-wrap justify-center gap-3 border-t border-slate-100 pt-8">
                 {caseId ? (
-                  <a
-                    href={pdfDownloadUrl(caseId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => openCasePdf(caseId)}
                     className="rounded-xl bg-accent px-6 py-3.5 text-sm font-bold text-white hover:bg-accent-600 hover:shadow-md hover:shadow-accent/10 active:scale-98 transition-all duration-150 shadow-sm"
                   >
                     Download Package
-                  </a>
+                  </button>
                 ) : (
                   <button
                     onClick={() => downloadOnboardingPackagePdf(planType, values)}

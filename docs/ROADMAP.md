@@ -35,9 +35,13 @@
 
 ## Phase 4 — Auth + signature finalization
 **Goal:** identity + legally meaningful signatures.
-- Turn on Supabase Auth (ownership columns already exist from Phase 2).
-- Server-side signature finalization + append-only audit log (signer, IP, timestamp, document hash).
-- **DoD:** a signed agreement is a tamper-evident server record tied to an authenticated user.
+- ✅ Turn on Supabase Auth (ownership columns from Phase 2 are now populated). Web sends the JWT to
+  our API; the API verifies it, scopes reads by org, and Postgres RLS enforces the same boundary as
+  defense-in-depth. See `specs/2026-06-identity-tenant-isolation.md`.
+- ⬜ Server-side signature finalization + append-only audit log (signer, IP, timestamp, document hash).
+- **DoD (auth):** ✅ an authenticated user sees only their org's data; unauthenticated + cross-org
+  requests are rejected; RLS enforced.
+- **DoD (signatures):** a signed agreement is a tamper-evident server record tied to an authenticated user.
 
 ## Ongoing — client modules (repeat the playbook)
 Each module the client delivers (payroll, census, funds, advisor, service agreement, auto-enroll…)

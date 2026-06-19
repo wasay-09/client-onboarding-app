@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { FormValues, PlanType } from '@fbsi/shared'
 import type { DB } from '../../db/client'
+import { withUserScope } from '../../db/scope'
 import { cases, organization, plan, type Case } from '../../db/schema/kernel'
 
 export interface CreateCaseInput {
@@ -9,7 +10,8 @@ export interface CreateCaseInput {
   answers: FormValues
 }
 
-/** DB access for the case flow. Owns the kernel rows created per submission. */
+/** DB access for the case flow. Owns the kernel rows created per submission.
+ *  Every method runs inside `withUserScope` so RLS is enforced by `userId`. */
 export class CaseStore {
   private readonly db: DB
 
@@ -17,18 +19,19 @@ export class CaseStore {
     this.db = db
   }
 
-  /** Create organization + plan + case atomically. */
-  async create(input: CreateCaseInput): Promise<Case> {
+  /** Create organization + plan + case atomically, all owned by `userId`. */
+  async create(input: CreateCaseInput, userId: string): Promise<Case> {
     const orgId = randomUUID()
     const planId = randomUUID()
     const caseId = randomUUID()
     const { answers, planType } = input
 
-    return this.db.transaction(async (tx) => {
+    return withUserScope(this.db, userId, async (tx) => {
       await tx.insert(organization).values({
         id: orgId,
         name: answers.companyName?.trim() || 'Unknown',
         ein: answers.ein || null,
+        ownerId: userId,
       })
       await tx.insert(plan).values({
         id: planId,
@@ -38,21 +41,36 @@ export class CaseStore {
       })
       const [row] = await tx
         .insert(cases)
-        .values({ id: caseId, organizationId: orgId, planId, planType, answers })
+        .values({ id: caseId, organizationId: orgId, planId, planType, answers, ownerId: userId })
         .returning()
       return row
     })
   }
 
-  async setPdf(id: string, pdf: { pdfPath: string; pdfHash: string }): Promise<void> {
-    await this.db
-      .update(cases)
-      .set({ pdfPath: pdf.pdfPath, pdfHash: pdf.pdfHash, updatedAt: new Date() })
-      .where(eq(cases.id, id))
+  async setPdf(
+    id: string,
+    pdf: { pdfPath: string; pdfHash: string },
+    userId: string,
+  ): Promise<void> {
+    await withUserScope(this.db, userId, async (tx) => {
+      await tx
+        .update(cases)
+        .set({ pdfPath: pdf.pdfPath, pdfHash: pdf.pdfHash, updatedAt: new Date() })
+        .where(eq(cases.id, id))
+    })
   }
 
-  async get(id: string): Promise<Case | null> {
-    const [row] = await this.db.select().from(cases).where(eq(cases.id, id)).limit(1)
-    return row ?? null
+  /** Fetch a case — null if it doesn't exist OR isn't in the user's organization.
+   *  Scoped in app logic (the org-ownership join) AND by RLS (the scope wrapper). */
+  async get(id: string, userId: string): Promise<Case | null> {
+    return withUserScope(this.db, userId, async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(cases)
+        .innerJoin(organization, eq(organization.id, cases.organizationId))
+        .where(and(eq(cases.id, id), eq(organization.ownerId, userId)))
+        .limit(1)
+      return row?.cases ?? null
+    })
   }
 }
