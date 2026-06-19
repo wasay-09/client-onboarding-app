@@ -22,25 +22,34 @@ and 403(b) forms carry the long "Design Considerations" section (employer match,
 sharing, safe harbor, loans, distributions, vesting, etc.) with heavy conditional logic.
 
 ## Architecture — schema-driven (one definition, three uses)
-Each field is declared **once** in `src/schema/`. That single definition drives the form UI,
-the validation, and the PDF.
+Each field is declared **once** in `packages/shared` (a pnpm-workspace monorepo). That single
+definition drives the form UI, the validation, and the PDF, and is imported everywhere via the
+`@fbsi/shared` package root (never a deep path).
 
 ```
-src/
+packages/shared/                # @fbsi/shared — the contract (used by web, scripts, later api)
+  index.ts                      # barrel: the public surface consumers import
   types.ts                      # FieldDef / SectionDef / PlanType
   schema/
     sharedCore.ts               # the 28 fields common to all plans (3 subsections)
     designConsiderations.ts     # ~38 fields, 401k/403b only, with showWhen conditions
+    operational.ts              # plan setup / contacts / payroll / advisor / funds sections
+    solo.ts                     # Solo 401(k) extra section
     plans.ts                    # PLANS: maps each plan -> which sections it uses
     visibility.ts               # isVisible(), validate(), displayValue() — shared by form + PDF
-  components/
-    PlanPicker.tsx              # step 1
-    QuestionnaireForm.tsx       # step 2 (react-hook-form + FormProvider)
-    fields/Field.tsx            # renders one field by type (text/date/radio/yesno/...)
   pdf/
     QuestionnairePdf.tsx        # @react-pdf/renderer document
-    generatePdf.ts             # build blob + trigger download
-  App.tsx                       # 3 steps: pick -> fill -> done
+    ServiceAgreementPdf.tsx     # service-agreement document
+    OnboardingPackagePdf.tsx    # combined cover + SA + summary
+    serviceAgreementContent.ts  # SLA articles, fee schedules, templates
+    generatePdf.tsx             # build blob + trigger download
+apps/web/                       # the React + Vite app (imports @fbsi/shared)
+  src/
+    components/
+      PlanPicker.tsx            # step 1
+      QuestionnaireForm.tsx     # step 2 (react-hook-form + FormProvider)
+      fields/Field.tsx          # renders one field by type (text/date/radio/yesno/...)
+    App.tsx                     # 3 steps: pick -> fill -> done
 ```
 
 ### How conditional fields work
@@ -63,9 +72,10 @@ No backend, no persistence, no login. Pure client-side; deployable as static fil
 
 ## Run
 ```bash
-npm install
-npm run dev      # local dev
-npm run build    # typecheck + production build
+pnpm install
+pnpm dev         # local dev (web app)
+pnpm build       # typecheck + production build (all workspaces)
+pnpm smoke       # headless: validate + render a PDF for every plan type
 ```
 
 ## Source forms
@@ -86,8 +96,8 @@ questionnaire markdown.
    Generated from already-collected data, then signed.
 3. **E-signature + submission.**
 
-When adding a new form, add its sections under `src/schema/`, register them, and reuse
-`sharedCore` fields rather than re-declaring them.
+When adding a new form, add its sections under `packages/shared/schema/`, register them, and
+reuse `sharedCore` fields rather than re-declaring them.
 
 ---
 
@@ -107,7 +117,7 @@ The architecture is built to absorb that: a **modular monolith** (one repo, one 
 a shared schema package, JSONB answers, and a small shared kernel modules reference.
 
 ## Non-negotiable invariants (don't violate without a Decision Log entry)
-1. **One source of truth for fields** — declared once in `packages/shared` (today `src/schema/`). Never redefined in API, DB, or PDF.
+1. **One source of truth for fields** — declared once in `packages/shared`, imported via the `@fbsi/shared` package root. Never redefined in API, DB, or PDF.
 2. **The schema is the contract** — web, api, and pdf all import the shared package; types flow from there.
 3. **Validate on the server** — the API re-runs the shared `validate()`; never trust the client.
 4. **Frontend talks only to our own API** — never directly to Supabase/DB.

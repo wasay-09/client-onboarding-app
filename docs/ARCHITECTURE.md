@@ -188,6 +188,7 @@ Concise, dated rationale so decisions don't silently erode. Graduate to `docs/ad
 - **2026-06 — Shared kernel for connected data; promote-on-evidence.** Relationships emerge; we don't model them blind.
 - **2026-06 — Supabase as infrastructure; frontend talks only to our API.** Managed DB/Auth/Storage with good PII defaults, but business logic stays in one place and the system stays portable.
 - **2026-06 — Stack chosen for AI fluency.** TS everywhere, Fastify, Drizzle, Vite, Vitest, GitHub Actions — mainstream, typed, well-documented.
+- **2026-06 — Phase 1 monorepo extract executed.** App → `apps/web`; `types`/`schema`/`pdf` → `packages/shared`, published as **`@fbsi/shared`** — a barrel over the TS source (no build step; Vite, vite-node, and `tsc` consume the source directly). The shared internal folder layout was preserved so no shared-internal imports changed; only external consumers (web + scripts) were retargeted to `@fbsi/shared`. **Lint runs once at the repo root** (`pnpm lint`); typecheck and build run per package (`pnpm -r ...`). ESLint forbids deep `@fbsi/shared/*` imports so the package root stays the contract. Verified zero behavior change via byte-identical PDF smoke output.
 
 ---
 
