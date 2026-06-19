@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, jsonb, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, jsonb, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import type { FormValues, PlanType } from '@fbsi/shared'
 
 // SHARED KERNEL — the small, governed core that every module references.
@@ -8,13 +9,21 @@ import type { FormValues, PlanType } from '@fbsi/shared'
 // `id` values are generated in the app (crypto.randomUUID) so we don't depend on
 // a DB-side gen_random_uuid() being available across drivers (pglite vs Postgres).
 
-export const organization = pgTable('organization', {
-  id: uuid('id').primaryKey(),
-  name: text('name').notNull(),
-  ein: text('ein'),
-  ownerId: uuid('owner_id'), // Phase 4 (Supabase Auth); nullable until then
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const organization = pgTable(
+  'organization',
+  {
+    id: uuid('id').primaryKey(),
+    name: text('name').notNull(),
+    ein: text('ein'), // normalized to digits-only — the org's natural key (Phase 3)
+    ownerId: uuid('owner_id'), // Phase 4 (Supabase Auth); nullable until then
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Phase 3 "ask once": EIN is the employer's natural key, so reuse-on-resubmit
+  // never makes a duplicate org. Scoped PER OWNER (not global) so it can't leak
+  // another tenant's existence and stays aligned with RLS. Partial (ein not null)
+  // so null EINs and pre-auth (null owner_id) rows never collide.
+  (t) => [uniqueIndex('organization_owner_ein_unique').on(t.ownerId, t.ein).where(sql`ein is not null`)],
+)
 
 export const plan = pgTable('plan', {
   id: uuid('id').primaryKey(),

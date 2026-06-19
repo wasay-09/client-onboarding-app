@@ -28,6 +28,25 @@ export function registerCaseRoutes(
     }
   })
 
+  // Most recent case for the caller, to pre-fill a new questionnaire across
+  // sessions. Registered before /:id; Fastify's router prefers the static segment,
+  // so 'latest' is never captured as an :id. 204 when the user has no prior cases.
+  app.get('/api/cases/latest', async (request, reply) => {
+    const userId = request.user?.id
+    if (!userId) return reply.code(401).send({ error: 'unauthorized' })
+
+    const c = await service.getLatest(userId)
+    if (!c) return reply.code(204).send()
+    return reply.send({
+      id: c.id,
+      planType: c.planType,
+      answers: c.answers,
+      status: c.status,
+      pdfUrl: `/api/cases/${c.id}/pdf`,
+      createdAt: c.createdAt,
+    })
+  })
+
   app.get('/api/cases/:id', async (request, reply) => {
     const userId = request.user?.id
     if (!userId) return reply.code(401).send({ error: 'unauthorized' })
