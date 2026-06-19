@@ -31,8 +31,8 @@ export default defineConfig([
     },
   },
   {
-    // Dev scripts run in Node via vite-node — allow Node globals (process, etc.).
-    files: ['scripts/**/*.{ts,tsx}'],
+    // Node-context code (the API + dev scripts) — allow Node globals (process, Buffer, etc.).
+    files: ['apps/api/**/*.{ts,tsx}', 'scripts/**/*.{ts,tsx}', '**/drizzle.config.ts'],
     languageOptions: {
       globals: globals.node,
     },

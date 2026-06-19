@@ -50,6 +50,14 @@ apps/web/                       # the React + Vite app (imports @fbsi/shared)
       QuestionnaireForm.tsx     # step 2 (react-hook-form + FormProvider)
       fields/Field.tsx          # renders one field by type (text/date/radio/yesno/...)
     App.tsx                     # 3 steps: pick -> fill -> done
+    api.ts                      # talks to our API (POST /cases, reload a case by id)
+apps/api/                       # Fastify service (Phase 2): persistence + server-made PDF
+  src/
+    db/schema/kernel.ts         # organization · plan · cases (answers JSONB) = the kernel
+    db/client.ts                # env-driven: pglite (local) | postgres (Supabase) by DATABASE_URL
+    kernel/cases/               # store · service (re-runs validate) · routes · index
+    pdf.ts  storage.ts          # renderToBuffer(OnboardingPackagePdf) -> PdfStorage
+    app.ts  server.ts           # build + register routers; boot + run migrations
 ```
 
 ### How conditional fields work
@@ -68,7 +76,9 @@ input stored under `<name>__other`. `displayValue()` resolves it for the PDF.
 - Tailwind CSS (brand cue: navy `#030D28`, Plus Jakarta Sans — from the original marketing page)
 - @react-pdf/renderer (PDF generation, fully client-side)
 
-No backend, no persistence, no login. Pure client-side; deployable as static files.
+The web app is pure client-side (deployable as static files). **Phase 2** adds `apps/api` (Fastify)
+for persistence + server-made PDFs; the web app posts to it and falls back to local generation if
+it's absent. No login yet (Phase 4).
 
 ## Run
 ```bash
@@ -101,10 +111,12 @@ reuse `sharedCore` fields rather than re-declaring them.
 
 ---
 
-# Phase 2+ — Backend, Database & Modular Architecture (PLANNED)
+# Phase 2+ — Backend, Database & Modular Architecture
 
 > Phase 1 (above) is the working client-side app. Phase 2 adds persistence, an API, auth, and
-> document/signature storage. **The full plan lives in `docs/` — read these before any backend work:**
+> document/signature storage. **Phase 2's minimal spine is implemented** — `apps/api` (cases API +
+> kernel + server-made PDF); see `specs/2026-06-phase-2-api.md`. **The full plan lives in `docs/` —
+> read these before any backend work:**
 > - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) — **start here**: the day-to-day operating guide (kickoff + per-module loop + copy-paste prompts)
 > - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system spine, stack, data model, and the rules that keep it coherent
 > - [`docs/MODULE_PLAYBOOK.md`](docs/MODULE_PLAYBOOK.md) — how to build ONE module (follow for every new part)

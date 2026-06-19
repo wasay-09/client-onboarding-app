@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PlanType, FormValues } from '@fbsi/shared'
 import {
   getPlan,
@@ -9,6 +9,7 @@ import {
 } from '@fbsi/shared'
 import { PlanPicker } from './components/PlanPicker'
 import { QuestionnaireForm } from './components/QuestionnaireForm'
+import { createCase, getCase, pdfDownloadUrl } from './api'
 
 type Step = 'pick' | 'fill' | 'done'
 
@@ -17,18 +18,47 @@ export default function App() {
   const [planType, setPlanType] = useState<PlanType | null>(null)
   const [values, setValues] = useState<FormValues>({})
   const [fileName, setFileName] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [caseId, setCaseId] = useState<string | null>(null)
+  // Start "busy" when about to reload a case from the URL, so we don't flash the
+  // picker. Lazy init keeps this setState out of the effect body.
+  const [busy, setBusy] = useState(() => /case=[\w-]+/.test(window.location.hash))
+
+  // Reload a previously submitted case from the API (survives a browser refresh).
+  useEffect(() => {
+    const match = window.location.hash.match(/case=([\w-]+)/)
+    if (!match) return
+    getCase(match[1])
+      .then((c) => {
+        setPlanType(c.planType)
+        setValues(c.answers)
+        setCaseId(c.id)
+        setStep('done')
+      })
+      .catch(() => {
+        window.location.hash = ''
+      })
+      .finally(() => setBusy(false))
+  }, [])
 
   async function complete(data: FormValues) {
     if (!planType) return
     setValues(data)
     setBusy(true)
     try {
-      // The combined Onboarding Package (execution/certification cover + Service
-      // Agreement, if any + Onboarding Summary) is the primary deliverable — its
-      // failure surfaces the error. Individual documents stay available below.
-      const pkgName = await downloadOnboardingPackagePdf(planType, data)
-      setFileName(pkgName)
+      // Submit to the API: it re-validates, persists the case, and renders + stores
+      // the canonical PDF server-side. The case id goes in the URL so a refresh can
+      // reload it. If the API is unreachable, fall back to local generation so the
+      // app still works standalone.
+      try {
+        const created = await createCase(planType, data)
+        setCaseId(created.id)
+        window.location.hash = `case=${created.id}`
+        setFileName('')
+      } catch (err) {
+        console.warn('API unavailable — generating the package locally instead.', err)
+        setCaseId(null)
+        setFileName(await downloadOnboardingPackagePdf(planType, data))
+      }
       setStep('done')
     } finally {
       setBusy(false)
@@ -36,10 +66,12 @@ export default function App() {
   }
 
   function reset() {
+    window.location.hash = ''
     setStep('pick')
     setPlanType(null)
     setValues({})
     setFileName('')
+    setCaseId(null)
   }
 
   // Service Agreement execution status, for the confirmation screen.
@@ -67,7 +99,7 @@ export default function App() {
           <div className="hidden sm:flex items-center gap-4 text-xs font-semibold text-slate-400">
             <span>Client Portal</span>
             <span className="h-3 w-px bg-slate-200" />
-            <span className="text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 font-bold">Phase 1</span>
+            <span className="text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 font-bold">Phase 2</span>
           </div>
         </div>
       </header>
@@ -103,7 +135,7 @@ export default function App() {
                 Onboarding Submitted!
               </h1>
               <p className="mt-3 text-slate-500 text-sm max-w-lg mx-auto leading-relaxed">
-                Your onboarding package for the <span className="font-bold text-navy">{getPlan(planType).name}</span> has been compiled and downloaded. It bundles your Service Agreement and onboarding summary behind an execution &amp; certification cover page.
+                Your onboarding package for the <span className="font-bold text-navy">{getPlan(planType).name}</span> has been submitted and saved. It bundles your Service Agreement and onboarding summary behind an execution &amp; certification cover page — download it below.
               </p>
 
               {/* Download File Detail Cards */}
@@ -203,12 +235,23 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="mt-10 flex flex-wrap justify-center gap-3 border-t border-slate-100 pt-8">
-                <button
-                  onClick={() => downloadOnboardingPackagePdf(planType, values)}
-                  className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
-                >
-                  Re-download Package
-                </button>
+                {caseId ? (
+                  <a
+                    href={pdfDownloadUrl(caseId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl bg-accent px-6 py-3.5 text-sm font-bold text-white hover:bg-accent-600 hover:shadow-md hover:shadow-accent/10 active:scale-98 transition-all duration-150 shadow-sm"
+                  >
+                    Download Package
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => downloadOnboardingPackagePdf(planType, values)}
+                    className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
+                  >
+                    Re-download Package
+                  </button>
+                )}
                 <button
                   onClick={() => downloadQuestionnairePdf(planType, values)}
                   className="rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-98 transition-all duration-150 shadow-sm"
