@@ -15,6 +15,13 @@
       "when": 1781874973363,
       "tag": "0001_reflective_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781877376040,
+      "tag": "0002_rls_org_isolation",
+      "breakpoints": true
     }
   ]
 }
