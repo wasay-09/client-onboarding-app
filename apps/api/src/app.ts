@@ -5,6 +5,8 @@ import type { Database } from './db/client'
 import { createStorage } from './storage'
 import { registerAuth } from './auth/plugin'
 import { CaseService, CaseStore, registerCaseRoutes } from './kernel/cases'
+import { DocumentStore } from './kernel/documents'
+import { StaffService, StaffStore, registerStaffRoutes } from './kernel/staff'
 
 /** Build the server, wiring kernel slices to the DB + storage. Tests inject a pglite db. */
 export function buildApp(config: Config, database: Database): FastifyInstance {
@@ -19,9 +21,14 @@ export function buildApp(config: Config, database: Database): FastifyInstance {
   registerAuth(app, config)
 
   const store = new CaseStore(database.db)
+  const documents = new DocumentStore(database.db)
   const storage = createStorage(config)
-  const service = new CaseService(store, storage)
+  const service = new CaseService(store, documents, storage)
   registerCaseRoutes(app, service, config.pdfServeMode)
+
+  // Internal staff dashboard: cross-owner read of any case (role-gated in the routes).
+  const staffService = new StaffService(new StaffStore(database.db), storage)
+  registerStaffRoutes(app, staffService, config.pdfServeMode)
 
   return app
 }

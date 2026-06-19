@@ -5,6 +5,14 @@ import type { Config } from '../config'
 export interface AuthUser {
   id: string
   email?: string
+  /** Application role from the Supabase custom claim `app_metadata.role`
+   *  ('staff' | 'admin' for internal users; undefined for plan-sponsor clients). */
+  role?: string
+}
+
+/** Internal FBSI staff (vs. plan-sponsor clients). Gates the staff dashboard. */
+export function isStaff(user: { role?: string } | undefined): boolean {
+  return user?.role === 'staff' || user?.role === 'admin'
 }
 
 /** Thrown when a token is missing/expired/forged. Never leak the reason to clients. */
@@ -75,5 +83,14 @@ export function createAuthVerifier(config: Config): AuthVerifier {
 function toUser(payload: JWTPayload): AuthUser {
   if (!payload.sub) throw new AuthError('token has no subject')
   const email = typeof payload.email === 'string' ? payload.email : undefined
-  return { id: payload.sub, email }
+  return { id: payload.sub, email, role: readRole(payload) }
+}
+
+/** Read the app-level role from Supabase's `app_metadata.role` custom claim. The
+ *  reserved top-level `role` claim is the Postgres role ('authenticated') — NOT this.
+ *  `app_metadata` is set by an admin via the Supabase admin API; it isn't on jose's
+ *  JWTPayload, so narrow it safely (a missing/non-string claim → undefined → client). */
+function readRole(payload: JWTPayload): string | undefined {
+  const meta = (payload as { app_metadata?: { role?: unknown } }).app_metadata
+  return typeof meta?.role === 'string' ? meta.role : undefined
 }

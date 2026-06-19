@@ -8,7 +8,15 @@ export interface AuthState {
   loading: boolean
   session: Session | null
   email: string | null
+  /** App role from app_metadata.role ('staff' | 'admin' for FBSI internal users).
+   *  'admin' in un-gated local dev so the staff dashboard is reachable. */
+  role: string | null
   signOut: () => Promise<void>
+}
+
+/** Whether a role grants access to the internal staff dashboard. */
+export function isStaffRole(role: string | null): boolean {
+  return role === 'staff' || role === 'admin'
 }
 
 export const AuthContext = createContext<AuthState | null>(null)

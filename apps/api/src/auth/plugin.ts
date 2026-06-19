@@ -19,7 +19,7 @@ function isPublic(method: string, url: string): boolean {
 export function registerAuth(app: FastifyInstance, config: Config): void {
   if (config.authBypass) {
     app.addHook('onRequest', async (request) => {
-      request.user = { id: config.devUserId }
+      request.user = { id: config.devUserId, role: config.devUserRole }
     })
     return
   }

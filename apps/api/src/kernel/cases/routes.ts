@@ -55,13 +55,15 @@ export function registerCaseRoutes(
     // A case the user doesn't own is reported as 404 (don't leak its existence).
     const c = await service.get(id, userId)
     if (!c) return reply.code(404).send({ error: 'not_found' })
+    // pdf_path/pdf_hash were promoted to the `document` table; the hash now comes from it.
+    const pdfHash = await service.getOnboardingHash(id, userId)
     return reply.send({
       id: c.id,
       planType: c.planType,
       answers: c.answers,
       status: c.status,
       pdfUrl: `/api/cases/${c.id}/pdf`,
-      pdfHash: c.pdfHash,
+      pdfHash,
       createdAt: c.createdAt,
     })
   })

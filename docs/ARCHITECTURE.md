@@ -207,6 +207,26 @@ Concise, dated rationale so decisions don't silently erode. Graduate to `docs/ad
   EIN stays in `answers.ein` (JSONB) for the PDF; only `organization.ein` is normalized. See
   `specs/2026-06-ask-once-across-sessions.md`.
 - **2026-06 — Identity + tenant isolation (Phase 4 auth).** Supabase Auth is on; the web app signs in (email + password) and sends the user's JWT to **our API only** (invariant 4), which verifies it locally with `jose` — HS256 via `SUPABASE_JWT_SECRET`, else JWKS via `SUPABASE_URL` — deliberately **not** Supabase's `auth.uid()`/`request.jwt.claims`, so the auth layer stays portable and testable offline. Ownership columns are populated on create and reads are scoped by organization ownership in the API (primary enforcement; cross-owner ⇒ 404, not 403, to avoid leaking existence). **RLS is defense-in-depth, not where logic lives:** because the API connects as a role that bypasses RLS, `withUserScope()` runs each DB op in a transaction that drops to a non-bypass `app_authenticated` role and stamps a tx-local `app.current_user_id` GUC the policies read (migration `0002`). The same mechanic works in pglite and Supabase, so RLS is proven in CI with zero infra. Local dev stays zero-config: web runs un-gated without `VITE_SUPABASE_*`, and the API honours `AUTH_BYPASS` — which `loadConfig()` refuses to start against a real `DATABASE_URL`. user↔org membership is deferred (invariant 7); the policy `owner_id` check is the one-line swap point. See `specs/2026-06-identity-tenant-isolation.md`.
+- **2026-06 — Internal staff view + `document`/`party` kernel normalizations.** Adds a **role-gated,
+  read-only staff dashboard** (FBSI staff list/search/open any case) and promotes two things into the
+  kernel (invariant 7). **Staff reads:** role comes from the Supabase `app_metadata.role` claim (no
+  schema); a `requireStaff` preHandler is the **primary** gate (403 for verified non-staff — the
+  `/api/staff` namespace is privileged, so no 404 existence-leak concern). Cross-owner reads use a new
+  `withStaffScope` that stamps a tx-local `app.is_staff` GUC, which **additive permissive `FOR SELECT`
+  RLS policies** read (migration `0006` for org/plan/cases; the new tables carry their own) — RLS as
+  defense-in-depth, SELECT-only so staff stay read-only at the DB wall; non-staff sessions never set
+  the GUC, so owner isolation is untouched (permissive policies OR together). Today `owner_id` is the
+  tenant boundary, so staff see **all** cases in this single-TPA deployment; the staff predicate + list
+  query are the **swap point** when user↔org membership lands (same place `org_owner` swaps). **`document`
+  table** replaces `cases.pdf_path`/`pdf_hash` (a case accrues many documents — service agreement, signed
+  copies — and needs `signed_at`); expand/contract: `0004` creates + backfills, `0007` drops the columns
+  (single-instance atomic deploy; reverse SQL in headers). `pdfHash` on `GET /cases/:id` is now sourced
+  from the document (contract unchanged). **`party` table** promotes contacts out of `answers` JSONB (the
+  payroll + advisor modules need structured contacts — the "second module" trigger); a projection runs in
+  the case-insert tx (atomic, owner-scoped, read-then-write upsert deduped per `(org, role, lower(email))`);
+  **raw contacts stay in `answers` for the PDF** (mirrors `organization.ein` vs `answers.ein`),
+  **going-forward only** (no historical backfill). All FKs point only toward the kernel. See
+  `specs/2026-06-staff-view-and-kernel-normalizations.md`.
 
 ---
 

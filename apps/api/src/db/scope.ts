@@ -21,3 +21,20 @@ export function withUserScope<T>(db: DB, userId: string, fn: (tx: Tx) => Promise
     return fn(tx)
   })
 }
+
+/**
+ * Like `withUserScope`, but for the internal staff dashboard: it additionally stamps the
+ * tx-local `app.is_staff` GUC, which the permissive `*_staff` RLS policies read to allow a
+ * cross-owner SELECT (migration 0006 + the document/party policies). `app.current_user_id`
+ * is still set (it identifies the staff actor for future audit logging). Staff reads are
+ * the only callers of this; the API's `requireStaff` preHandler is the primary gate, RLS
+ * the second wall. Read-only by design — the `*_staff` policies are FOR SELECT only.
+ */
+export function withStaffScope<T>(db: DB, userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.current_user_id', ${userId}, true)`)
+    await tx.execute(sql`select set_config('app.is_staff', 'on', true)`)
+    await tx.execute(sql`set local role app_authenticated`)
+    return fn(tx)
+  })
+}

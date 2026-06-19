@@ -29,6 +29,34 @@
       "when": 1781897024020,
       "tag": "0003_certain_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781899238330,
+      "tag": "0004_document_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781899256258,
+      "tag": "0005_party_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781899260530,
+      "tag": "0006_staff_read_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781899273812,
+      "tag": "0007_drop_case_pdf_columns",
+      "breakpoints": true
     }
   ]
 }

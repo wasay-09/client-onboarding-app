@@ -4,6 +4,7 @@ import type { FormValues, PlanType } from '@fbsi/shared'
 import type { DB } from '../../db/client'
 import { withUserScope } from '../../db/scope'
 import { cases, organization, plan, type Case } from '../../db/schema/kernel'
+import { projectParties } from '../parties'
 
 export interface CreateCaseInput {
   planType: PlanType
@@ -81,20 +82,12 @@ export class CaseStore {
         .insert(cases)
         .values({ id: randomUUID(), organizationId: org.id, planId: planRow.id, planType, answers, ownerId: userId })
         .returning()
-      return row
-    })
-  }
 
-  async setPdf(
-    id: string,
-    pdf: { pdfPath: string; pdfHash: string },
-    userId: string,
-  ): Promise<void> {
-    await withUserScope(this.db, userId, async (tx) => {
-      await tx
-        .update(cases)
-        .set({ pdfPath: pdf.pdfPath, pdfHash: pdf.pdfHash, updatedAt: new Date() })
-        .where(eq(cases.id, id))
+      // Promote contacts into canonical kernel parties, in the SAME tx (atomic with the
+      // case). Raw contacts stay in `answers` for the PDF; this is the normalized copy
+      // the payroll + advisor modules consume.
+      await projectParties(tx, org.id, row.id, answers)
+      return row
     })
   }
 

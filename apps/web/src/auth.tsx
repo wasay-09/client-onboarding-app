@@ -17,11 +17,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // Un-gated local dev (no Supabase) defaults to 'admin' so the staff dashboard is
+  // reachable — matches the API's DEV_USER_ROLE default. With auth on, the role comes
+  // from the Supabase custom claim app_metadata.role (set by an admin).
+  const role = !authEnabled
+    ? 'admin'
+    : ((session?.user?.app_metadata?.role as string | undefined) ?? null)
+
   const value: AuthState = {
     authEnabled,
     loading,
     session,
     email: session?.user?.email ?? null,
+    role,
     signOut: async () => {
       await supabase?.auth.signOut()
     },
