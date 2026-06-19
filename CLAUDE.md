@@ -88,3 +88,35 @@ questionnaire markdown.
 
 When adding a new form, add its sections under `src/schema/`, register them, and reuse
 `sharedCore` fields rather than re-declaring them.
+
+---
+
+# Phase 2+ — Backend, Database & Modular Architecture (PLANNED)
+
+> Phase 1 (above) is the working client-side app. Phase 2 adds persistence, an API, auth, and
+> document/signature storage. **The full plan lives in `docs/` — read these before any backend work:**
+> - [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) — **start here**: the day-to-day operating guide (kickoff + per-module loop + copy-paste prompts)
+> - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system spine, stack, data model, and the rules that keep it coherent
+> - [`docs/MODULE_PLAYBOOK.md`](docs/MODULE_PLAYBOOK.md) — how to build ONE module (follow for every new part)
+> - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased build order with a definition-of-done per phase
+> - [`docs/AI_WORKFLOW.md`](docs/AI_WORKFLOW.md) — how to work in this repo with Claude Code (skills, specs, context)
+
+**Context:** the client delivers requirements **one module at a time** and doesn't yet know all
+modules/flows, so the backend/DB will change often. The data is connected (financial product).
+The architecture is built to absorb that: a **modular monolith** (one repo, one Postgres DB) with
+a shared schema package, JSONB answers, and a small shared kernel modules reference.
+
+## Non-negotiable invariants (don't violate without a Decision Log entry)
+1. **One source of truth for fields** — declared once in `packages/shared` (today `src/schema/`). Never redefined in API, DB, or PDF.
+2. **The schema is the contract** — web, api, and pdf all import the shared package; types flow from there.
+3. **Validate on the server** — the API re-runs the shared `validate()`; never trust the client.
+4. **Frontend talks only to our own API** — never directly to Supabase/DB.
+5. **JSONB for answers, columns for the kernel** — adding a questionnaire field needs no migration; only shared/queried/constrained data becomes a column.
+6. **Modules reference the shared kernel, never each other's tables** — cross-module access via a module's service API; FKs point toward the kernel.
+7. **Promote to a real table only on evidence** — when you need to query, join, constrain, or share it.
+8. **Every change ships with a spec** (`specs/`); changed decisions go in the Decision Log (`docs/ARCHITECTURE.md`).
+9. **Nothing merges without** typecheck + lint + build (+ tests) passing.
+
+Stack: TypeScript everywhere · pnpm monorepo · React+Vite (`apps/web`) · Fastify (`apps/api`) ·
+PostgreSQL via Supabase · Drizzle ORM · Vitest · GitHub Actions. Chosen to be mainstream and
+strongly typed so the toolchain catches AI mistakes. See `docs/ARCHITECTURE.md` for the why.
