@@ -39,6 +39,7 @@ export const cases = pgTable('cases', {
   status: text('status').notNull().default('submitted'),
   answers: jsonb('answers').$type<FormValues>().notNull(), // Tier 2 — no migration to add fields
   pdfPath: text('pdf_path'),
+  pdfHash: text('pdf_hash'), // SHA-256 of the canonical PDF (Phase 4 audit-log prep)
   ownerId: uuid('owner_id'), // Phase 4; nullable until then
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

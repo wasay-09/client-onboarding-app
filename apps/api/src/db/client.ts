@@ -21,7 +21,10 @@ export interface Database {
  */
 export function createDatabase(config: Config): Database {
   if (config.databaseUrl) {
-    const client = postgres(config.databaseUrl)
+    // prepare:false works with both Supabase pooler modes (the transaction pooler
+    // can't reuse named prepared statements); our query set is tiny so the cost is
+    // nil. SSL is taken from the connection string (append ?sslmode=require).
+    const client = postgres(config.databaseUrl, { prepare: false })
     const db = drizzlePostgres(client, { schema })
     return { db, kind: 'postgres', close: () => client.end() }
   }

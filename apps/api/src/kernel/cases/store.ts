@@ -44,8 +44,11 @@ export class CaseStore {
     })
   }
 
-  async setPdfPath(id: string, pdfPath: string): Promise<void> {
-    await this.db.update(cases).set({ pdfPath, updatedAt: new Date() }).where(eq(cases.id, id))
+  async setPdf(id: string, pdf: { pdfPath: string; pdfHash: string }): Promise<void> {
+    await this.db
+      .update(cases)
+      .set({ pdfPath: pdf.pdfPath, pdfHash: pdf.pdfHash, updatedAt: new Date() })
+      .where(eq(cases.id, id))
   }
 
   async get(id: string): Promise<Case | null> {
