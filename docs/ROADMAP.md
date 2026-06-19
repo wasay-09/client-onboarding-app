@@ -28,10 +28,13 @@
   `GET /cases/:id`. Frontend posts instead of generating locally.
 - **DoD:** create a case, refresh the browser, reload it from the API; PDF served from storage.
 
-## Phase 3 — Ask-once across sessions
+## Phase 3 — Ask-once across sessions ✅
 **Goal:** the "ask once" payoff goes cross-session.
-- Look up an existing organization/plan and pre-fill known fields; collect only the delta.
-- **DoD:** a returning user is not re-asked fields already on record.
+- ✅ Look up an existing organization/plan and pre-fill known fields; collect only the delta.
+  EIN is the org's per-owner natural key (normalized, `UNIQUE(owner_id, ein)`); `POST /cases` reuses
+  the org + plan instead of duplicating; `GET /cases/latest` feeds a pre-fill + review form.
+  See `specs/2026-06-ask-once-across-sessions.md`.
+- **DoD:** ✅ a returning user is not re-asked fields already on record; ✅ no duplicate orgs created.
 
 ## Phase 4 — Auth + signature finalization
 **Goal:** identity + legally meaningful signatures.

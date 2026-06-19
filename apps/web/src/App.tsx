@@ -9,7 +9,7 @@ import {
 } from '@fbsi/shared'
 import { PlanPicker } from './components/PlanPicker'
 import { QuestionnaireForm } from './components/QuestionnaireForm'
-import { ApiError, createCase, getCase, openCasePdf } from './api'
+import { ApiError, createCase, getCase, getLatestCase, openCasePdf } from './api'
 import { useAuth } from './auth-context'
 
 type Step = 'pick' | 'fill' | 'done'
@@ -19,6 +19,9 @@ export default function App() {
   const [step, setStep] = useState<Step>('pick')
   const [planType, setPlanType] = useState<PlanType | null>(null)
   const [values, setValues] = useState<FormValues>({})
+  // Known answers from the user's most recent case, used to pre-fill a new
+  // questionnaire across sessions ("ask once"). Empty when they have no history.
+  const [initialValues, setInitialValues] = useState<FormValues>({})
   const [fileName, setFileName] = useState('')
   const [caseId, setCaseId] = useState<string | null>(null)
   // Start "busy" when about to reload a case from the URL, so we don't flash the
@@ -41,6 +44,23 @@ export default function App() {
       })
       .finally(() => setBusy(false))
   }, [])
+
+  // Move from plan picker to the form, pre-filling from the user's most recent
+  // case so already-collected details aren't re-asked. Best-effort: any failure
+  // (offline, no history) just starts with a blank form.
+  async function pickPlan(type: PlanType) {
+    setBusy(true)
+    try {
+      const latest = await getLatestCase()
+      setInitialValues(latest?.answers ?? {})
+    } catch {
+      setInitialValues({})
+    } finally {
+      setBusy(false)
+    }
+    setPlanType(type)
+    setStep('fill')
+  }
 
   async function complete(data: FormValues) {
     if (!planType) return
@@ -79,6 +99,7 @@ export default function App() {
     setStep('pick')
     setPlanType(null)
     setValues({})
+    setInitialValues({})
     setFileName('')
     setCaseId(null)
   }
@@ -129,17 +150,15 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1">
-        {step === 'pick' && (
-          <PlanPicker
-            onSelect={(type) => {
-              setPlanType(type)
-              setStep('fill')
-            }}
-          />
-        )}
+        {step === 'pick' && <PlanPicker onSelect={pickPlan} />}
 
         {step === 'fill' && planType && (
-          <QuestionnaireForm planType={planType} onBack={reset} onComplete={complete} />
+          <QuestionnaireForm
+            planType={planType}
+            initialValues={initialValues}
+            onBack={reset}
+            onComplete={complete}
+          />
         )}
 
         {step === 'done' && planType && (

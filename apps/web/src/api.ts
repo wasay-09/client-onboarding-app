@@ -66,3 +66,12 @@ export async function getCase(id: string): Promise<LoadedCase> {
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
   return res.json()
 }
+
+/** The caller's most recent case, for cross-session pre-fill ("ask once"). Returns
+ *  null when they have no prior case (API replies 204). */
+export async function getLatestCase(): Promise<LoadedCase | null> {
+  const res = await fetch(`${API_URL}/api/cases/latest`, { headers: await authHeaders() })
+  if (res.status === 204 || res.status === 404) return null
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  return res.json()
+}

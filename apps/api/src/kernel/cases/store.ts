@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { FormValues, PlanType } from '@fbsi/shared'
 import type { DB } from '../../db/client'
 import { withUserScope } from '../../db/scope'
@@ -8,6 +8,14 @@ import { cases, organization, plan, type Case } from '../../db/schema/kernel'
 export interface CreateCaseInput {
   planType: PlanType
   answers: FormValues
+}
+
+/** The organization's natural key: EIN reduced to digits only, so '12-3456789'
+ *  and '123456789' resolve to the same employer. Empty -> null (no key). The raw,
+ *  formatted EIN is preserved in `answers.ein` (JSONB) for the PDF. */
+export function normalizeEin(raw: string | undefined): string | null {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return digits || null
 }
 
 /** DB access for the case flow. Owns the kernel rows created per submission.
@@ -19,29 +27,59 @@ export class CaseStore {
     this.db = db
   }
 
-  /** Create organization + plan + case atomically, all owned by `userId`. */
+  /**
+   * Persist a submission, atomically, all owned by `userId`. "Ask once" across
+   * sessions: an existing organization (matched by its EIN natural key) and an
+   * existing plan of this type are REUSED rather than duplicated; only the case is
+   * always new (each submission is its own row → "most recent answers"). Reuse
+   * lookups run inside `withUserScope`, so RLS already limits them to the caller's
+   * own rows. The UNIQUE(owner_id, ein) index is the backstop behind the find-first.
+   */
   async create(input: CreateCaseInput, userId: string): Promise<Case> {
-    const orgId = randomUUID()
-    const planId = randomUUID()
-    const caseId = randomUUID()
     const { answers, planType } = input
+    const ein = normalizeEin(answers.ein)
 
     return withUserScope(this.db, userId, async (tx) => {
-      await tx.insert(organization).values({
-        id: orgId,
-        name: answers.companyName?.trim() || 'Unknown',
-        ein: answers.ein || null,
-        ownerId: userId,
-      })
-      await tx.insert(plan).values({
-        id: planId,
-        organizationId: orgId,
-        planType,
-        name: answers.planName || null,
-      })
+      // Reuse the org by its EIN natural key, else create it.
+      const existingOrg = ein
+        ? await tx
+            .select()
+            .from(organization)
+            .where(and(eq(organization.ownerId, userId), eq(organization.ein, ein)))
+            .limit(1)
+        : []
+      const org =
+        existingOrg[0] ??
+        (
+          await tx
+            .insert(organization)
+            .values({
+              id: randomUUID(),
+              name: answers.companyName?.trim() || 'Unknown',
+              ein,
+              ownerId: userId,
+            })
+            .returning()
+        )[0]
+
+      // Reuse this org's plan of the same type, else create it.
+      const existingPlan = await tx
+        .select()
+        .from(plan)
+        .where(and(eq(plan.organizationId, org.id), eq(plan.planType, planType)))
+        .limit(1)
+      const planRow =
+        existingPlan[0] ??
+        (
+          await tx
+            .insert(plan)
+            .values({ id: randomUUID(), organizationId: org.id, planType, name: answers.planName || null })
+            .returning()
+        )[0]
+
       const [row] = await tx
         .insert(cases)
-        .values({ id: caseId, organizationId: orgId, planId, planType, answers, ownerId: userId })
+        .values({ id: randomUUID(), organizationId: org.id, planId: planRow.id, planType, answers, ownerId: userId })
         .returning()
       return row
     })
@@ -57,6 +95,21 @@ export class CaseStore {
         .update(cases)
         .set({ pdfPath: pdf.pdfPath, pdfHash: pdf.pdfHash, updatedAt: new Date() })
         .where(eq(cases.id, id))
+    })
+  }
+
+  /** The user's most recent case (any plan type), for cross-session pre-fill — or
+   *  null if they have none. Scoped by org ownership AND by RLS. */
+  async getLatest(userId: string): Promise<Case | null> {
+    return withUserScope(this.db, userId, async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(cases)
+        .innerJoin(organization, eq(organization.id, cases.organizationId))
+        .where(eq(organization.ownerId, userId))
+        .orderBy(desc(cases.createdAt))
+        .limit(1)
+      return row?.cases ?? null
     })
   }
 

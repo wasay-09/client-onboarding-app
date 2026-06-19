@@ -16,6 +16,8 @@ import { Field } from './fields/Field'
 
 interface Props {
   planType: PlanType
+  /** Known answers from a prior submission, used to pre-fill across sessions. */
+  initialValues?: FormValues
   onBack: () => void
   onComplete: (values: FormValues) => void
 }
@@ -104,9 +106,12 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
   )
 }
 
-export function QuestionnaireForm({ planType, onBack, onComplete }: Props) {
+export function QuestionnaireForm({ planType, initialValues = {}, onBack, onComplete }: Props) {
   const plan = getPlan(planType)
-  const methods = useForm<FormValues>({ defaultValues: {}, mode: 'onSubmit' })
+  // Seed the form with any known answers from a prior submission ("ask once").
+  // defaultValues are captured once on mount; the form is remounted per plan pick.
+  const methods = useForm<FormValues>({ defaultValues: initialValues, mode: 'onSubmit' })
+  const prefilled = Object.keys(initialValues).length > 0
   const { handleSubmit, watch, getValues, setValue, register } = methods
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [activeStep, setActiveStep] = useState(0)
@@ -610,6 +615,15 @@ export function QuestionnaireForm({ planType, onBack, onComplete }: Props) {
                       <p className="mt-2 text-sm text-slate-500 leading-relaxed">
                         {currentStep.section.description}
                       </p>
+                    )}
+
+                    {prefilled && (
+                      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/[0.04] px-4 py-3">
+                        <span className="mt-0.5 text-accent text-sm font-bold leading-none">ⓘ</span>
+                        <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+                          Pre-filled from your last submission — review and update anything that changed.
+                        </p>
+                      </div>
                     )}
 
                     <div className="mt-8 space-y-6 border-t border-slate-100 pt-6">

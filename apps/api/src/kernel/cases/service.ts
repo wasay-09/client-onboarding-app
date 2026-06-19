@@ -59,6 +59,12 @@ export class CaseService {
     return this.store.get(id, userId)
   }
 
+  /** The caller's most recent case (any plan type) — used to pre-fill a new
+   *  questionnaire across sessions ("ask once"). Null if they have none. */
+  getLatest(userId: string): Promise<Case | null> {
+    return this.store.getLatest(userId)
+  }
+
   async getPdf(id: string, userId: string): Promise<Uint8Array | null> {
     const c = await this.store.get(id, userId)
     if (!c?.pdfPath) return null
