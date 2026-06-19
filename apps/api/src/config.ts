@@ -30,6 +30,10 @@ export interface Config {
   /** The role assumed when authBypass is on, so local un-gated dev can reach the
    *  staff dashboard. Read ONLY on the bypass branch → no effect in a real deployment. */
   devUserRole: string
+  /** Trust X-Forwarded-For so request.ip is the real client (for the signature audit
+   *  log) when behind a reverse proxy. ON in the nginx deploy (Decision Log §195); OFF
+   *  locally so a client can't spoof its own IP when hitting the API directly. */
+  trustProxy: boolean
 }
 
 /** A stable, obviously-fake UUID used as the actor when AUTH_BYPASS is on. */
@@ -62,5 +66,6 @@ export function loadConfig(): Config {
     authBypass,
     devUserId: process.env.DEV_USER_ID || DEFAULT_DEV_USER_ID,
     devUserRole: process.env.DEV_USER_ROLE || 'admin',
+    trustProxy: process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true',
   }
 }

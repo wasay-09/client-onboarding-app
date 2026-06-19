@@ -227,6 +227,28 @@ Concise, dated rationale so decisions don't silently erode. Graduate to `docs/ad
   **raw contacts stay in `answers` for the PDF** (mirrors `organization.ein` vs `answers.ein`),
   **going-forward only** (no historical backfill). All FKs point only toward the kernel. See
   `specs/2026-06-staff-view-and-kernel-normalizations.md`.
+- **2026-06 — Signature finalization + append-only audit log (Phase 4).** A signed agreement
+  is now a tamper-evident server record tied to an authenticated user. **Folded into
+  `POST /api/cases`, not a separate `/sign` endpoint:** the signature already rides in
+  `answers` and the server already renders+hashes the canonical PDF (which embeds the
+  signature image), so finalization happens in the same submit with no web rework — the
+  submit's IP/user-agent *is* the signing act's. The server **re-derives** which finalized
+  events a submission carries (invariant 3 — never trust the client to declare "signed"):
+  `sla_signature` (consented+authorized+named+signed+acknowledged) and/or
+  `data_certification`; the delegate path is "pending route", not a signature. A new
+  **`signature_event`** kernel table (migration `0008`) is **append-only at the DB wall** —
+  `app_authenticated` is granted only `SELECT, INSERT` (no UPDATE/DELETE), so the trail is
+  immutable by Postgres, not just convention. Each row freezes `document_sha256` (the exact
+  signed PDF's hash) → tamper-evident even if the `document` row changed; `signer_user_id`
+  (the verified JWT subject) is the identity binding; IP/user-agent/timestamp/method/consent
+  complete the ESIGN/UETA §7 set. The document + its audit event(s) are written in **one
+  `withUserScope` tx** (atomic); an `sla_signature` also stamps `document.signed_at` (a
+  certification leaves it null — it attests data, it isn't an executed agreement). RLS:
+  `*_by_org` (owner) + `*_staff` (`FOR SELECT`). **`TRUST_PROXY`** (Fastify `trustProxy`,
+  ON behind nginx, OFF when exposed directly) makes the audited IP the real client, not the
+  loopback, without letting a direct caller spoof it. Owners see a `signature` summary on
+  `GET /cases/:id` (no IP/UA); staff see the full trail. See
+  `specs/2026-06-signature-finalization.md`.
 
 ---
 

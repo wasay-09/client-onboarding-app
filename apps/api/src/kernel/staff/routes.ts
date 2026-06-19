@@ -62,6 +62,7 @@ export function registerStaffRoutes(
       pdfHash: onboarding?.sha256 ?? null,
       parties: detail.parties,
       documents: detail.documents,
+      signatureEvents: detail.signatureEvents,
     })
   })
 

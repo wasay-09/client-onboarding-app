@@ -106,6 +106,42 @@ export const party = pgTable(
   (t) => [uniqueIndex('party_org_role_email_unique').on(t.organizationId, t.role, t.email)],
 )
 
+// APPEND-ONLY signature/consent audit log (Phase 4) — the legally meaningful record
+// for ESIGN/UETA validity. One row per finalized signature or certification, written
+// in the SAME tx as its `document`. Append-only is enforced at the DB wall: migration
+// 0008 grants ONLY SELECT + INSERT to app_authenticated (no UPDATE/DELETE), so a row
+// can never be altered after the fact. `document_sha256` is a frozen copy of the exact
+// signed PDF's hash, so the record is tamper-evident even if the `document` row changed.
+// `organization_id` is denormalized so RLS scopes by org exactly like `document`/`cases`.
+export const signatureEvent = pgTable(
+  'signature_event',
+  {
+    id: uuid('id').primaryKey(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => document.id),
+    caseId: uuid('case_id')
+      .notNull()
+      .references(() => cases.id),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organization.id),
+    eventType: text('event_type').notNull(), // 'sla_signature' | 'data_certification'
+    signerUserId: uuid('signer_user_id').notNull(), // the authenticated caller — identity binding
+    signerName: text('signer_name'),
+    signerTitle: text('signer_title'),
+    signerEmail: text('signer_email'), // from the verified JWT (account identity)
+    method: text('method').notNull(), // 'esign_signature_pad' | 'attestation_checkbox'
+    consented: boolean('consented').notNull(), // server-verified esignConsent === 'Yes'
+    consentAt: text('consent_at'), // client-asserted consent time (informational)
+    documentSha256: text('document_sha256').notNull(), // frozen hash of the signed PDF
+    ip: text('ip'), // signing request IP (needs trustProxy behind nginx)
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), // the audit timestamp
+  },
+  (t) => [index('signature_event_case_idx').on(t.caseId), index('signature_event_document_idx').on(t.documentId)],
+)
+
 export type Organization = typeof organization.$inferSelect
 export type Plan = typeof plan.$inferSelect
 export type Case = typeof cases.$inferSelect
@@ -114,3 +150,5 @@ export type Document = typeof document.$inferSelect
 export type NewDocument = typeof document.$inferInsert
 export type Party = typeof party.$inferSelect
 export type NewParty = typeof party.$inferInsert
+export type SignatureEvent = typeof signatureEvent.$inferSelect
+export type NewSignatureEvent = typeof signatureEvent.$inferInsert

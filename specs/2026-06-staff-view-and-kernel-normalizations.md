@@ -94,4 +94,5 @@ wall. Local dev stays zero-config.
 - user↔org membership / multi-tenant TPA (the staff RLS predicate + list query are the swap point).
 - Historical party backfill (going-forward only); exploding documents beyond `onboarding_package`.
 - `pg_trgm` GIN index on `organization.name`/`plan.name` if `ilike '%q%'` search ever hurts at scale.
-- Signature finalization writing `document.signed_at` + the append-only audit log keyed on `sha256`.
+- ~~Signature finalization writing `document.signed_at` + the append-only audit log keyed on `sha256`.~~
+  Done — see `specs/2026-06-signature-finalization.md` (`signature_event` table, migration `0008`).

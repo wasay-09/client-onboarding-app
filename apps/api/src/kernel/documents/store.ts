@@ -4,6 +4,7 @@ import type { DB } from '../../db/client'
 import type { Tx } from '../../db/scope'
 import { withUserScope } from '../../db/scope'
 import { document, type Document } from '../../db/schema/kernel'
+import { insertSignatureEvent, type SignatureEventDraft } from '../signatures'
 
 export interface CreateDocumentInput {
   caseId: string
@@ -11,6 +12,18 @@ export interface CreateDocumentInput {
   type: string
   storageKey: string
   sha256: string
+  /** Execution time when the document carries a finalized signature; null otherwise. */
+  signedAt?: Date | null
+}
+
+/** Server-side context for the signature events written alongside a document. The
+ *  per-event fields come from the answers (SignatureEventDraft); these are added by the
+ *  server at write time so the client can never assert them. */
+export interface SignatureContext {
+  signerUserId: string
+  signerEmail: string | null
+  ip: string | null
+  userAgent: string | null
 }
 
 /** DB access for the `document` kernel table — the canonical PDF and any documents a
@@ -23,10 +36,41 @@ export class DocumentStore {
     this.db = db
   }
 
-  /** Insert a document for a case the caller owns. `organizationId` comes from the
-   *  just-created case so the by-org WITH CHECK passes. */
-  async create(input: CreateDocumentInput, userId: string): Promise<Document> {
-    return withUserScope(this.db, userId, async (tx) => insertDocument(tx, input))
+  /**
+   * Insert a document for a case the caller owns AND, in the SAME transaction, append any
+   * finalized signature/certification events to the append-only audit log — so a signed
+   * document and its tamper-evident record are written atomically (all or nothing).
+   * `organizationId` comes from the just-created case so the by-org WITH CHECK passes.
+   * Pass `events: []` for an unsigned submission (just the document, no audit rows).
+   */
+  async create(
+    input: CreateDocumentInput,
+    events: SignatureEventDraft[],
+    ctx: SignatureContext,
+    userId: string,
+  ): Promise<Document> {
+    return withUserScope(this.db, userId, async (tx) => {
+      const doc = await insertDocument(tx, input)
+      for (const e of events) {
+        await insertSignatureEvent(tx, {
+          documentId: doc.id,
+          caseId: input.caseId,
+          organizationId: input.organizationId,
+          eventType: e.eventType,
+          signerUserId: ctx.signerUserId,
+          signerName: e.signerName,
+          signerTitle: e.signerTitle,
+          signerEmail: ctx.signerEmail,
+          method: e.method,
+          consented: e.consented,
+          consentAt: e.consentAt,
+          documentSha256: input.sha256, // freeze the exact signed PDF's hash on the event
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        })
+      }
+      return doc
+    })
   }
 
   /** The most recent document of a type for a case, or null. Scoped by RLS. */

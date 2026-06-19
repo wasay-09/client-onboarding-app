@@ -6,11 +6,14 @@ import { createStorage } from './storage'
 import { registerAuth } from './auth/plugin'
 import { CaseService, CaseStore, registerCaseRoutes } from './kernel/cases'
 import { DocumentStore } from './kernel/documents'
+import { SignatureStore } from './kernel/signatures'
 import { StaffService, StaffStore, registerStaffRoutes } from './kernel/staff'
 
 /** Build the server, wiring kernel slices to the DB + storage. Tests inject a pglite db. */
 export function buildApp(config: Config, database: Database): FastifyInstance {
-  const app = Fastify({ logger: false })
+  // trustProxy: read the real client IP from X-Forwarded-For behind nginx, for the ESIGN
+  // audit log. OFF locally so a direct caller can't spoof request.ip. See config.trustProxy.
+  const app = Fastify({ logger: false, trustProxy: config.trustProxy })
 
   app.register(cors, { origin: config.webOrigin === '*' ? true : config.webOrigin })
 
@@ -22,8 +25,9 @@ export function buildApp(config: Config, database: Database): FastifyInstance {
 
   const store = new CaseStore(database.db)
   const documents = new DocumentStore(database.db)
+  const signatures = new SignatureStore(database.db)
   const storage = createStorage(config)
-  const service = new CaseService(store, documents, storage)
+  const service = new CaseService(store, documents, signatures, storage)
   registerCaseRoutes(app, service, config.pdfServeMode)
 
   // Internal staff dashboard: cross-owner read of any case (role-gated in the routes).

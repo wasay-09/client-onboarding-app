@@ -19,6 +19,15 @@ const ROLE_LABELS: Record<string, string> = {
   ach: 'ACH Contact',
 }
 
+const EVENT_LABELS: Record<string, string> = {
+  sla_signature: 'Service Agreement signed',
+  data_certification: 'Questionnaire certified',
+}
+const METHOD_LABELS: Record<string, string> = {
+  esign_signature_pad: 'Electronic signature',
+  attestation_checkbox: 'Attestation',
+}
+
 /** A single answer field, rendered read-only for staff (mirrors the form's visibility,
  *  so what staff see is exactly what the PDF prints). Table fields show their rows. */
 function FieldRow({ field, values }: { field: FieldDef; values: Detail['answers'] }) {
@@ -136,6 +145,49 @@ export function StaffCaseDetail({ id, onClose }: { id: string; onClose: () => vo
                         {p.isAuthorizedSigner && (
                           <span className="text-[10px] font-bold text-emerald-600">authorized signer</span>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {detail.signatureEvents.length > 0 && (
+                <section className="mb-6">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    Signature Audit Trail
+                  </h3>
+                  <div className="space-y-2">
+                    {detail.signatureEvents.map((e) => (
+                      <div key={e.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">
+                            {EVENT_LABELS[e.eventType] ?? e.eventType}
+                          </span>
+                          <span className="font-semibold text-slate-800">{e.signerName ?? '—'}</span>
+                          {e.signerTitle && <span className="text-slate-500">{e.signerTitle}</span>}
+                          <span className="text-slate-400">{new Date(e.createdAt).toLocaleString()}</span>
+                        </div>
+                        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-slate-500">
+                          <dt className="font-semibold text-slate-400">Method</dt>
+                          <dd>
+                            {METHOD_LABELS[e.method] ?? e.method}
+                            {e.consented ? ' · e-records consent recorded' : ' · no consent on record'}
+                          </dd>
+                          {e.signerEmail && (
+                            <>
+                              <dt className="font-semibold text-slate-400">Account</dt>
+                              <dd className="break-all">{e.signerEmail}</dd>
+                            </>
+                          )}
+                          {e.ip && (
+                            <>
+                              <dt className="font-semibold text-slate-400">IP</dt>
+                              <dd>{e.ip}</dd>
+                            </>
+                          )}
+                          <dt className="font-semibold text-slate-400">Doc hash</dt>
+                          <dd className="font-mono text-[10px] break-all text-slate-600">{e.documentSha256}</dd>
+                        </dl>
                       </div>
                     ))}
                   </div>
