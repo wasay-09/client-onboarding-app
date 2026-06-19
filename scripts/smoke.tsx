@@ -1,10 +1,8 @@
 // Headless smoke test: validation logic + PDF render for each plan type.
 import { createElement } from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
-import { PLANS } from '../src/schema/plans'
-import { validate } from '../src/schema/visibility'
-import type { FormValues } from '../src/schema/visibility'
-import { QuestionnairePdf } from '../src/pdf/QuestionnairePdf'
+import { PLANS, validate, QuestionnairePdf } from '@fbsi/shared'
+import type { FormValues } from '@fbsi/shared'
 
 // Minimal valid shared-core data.
 const base: FormValues = {
