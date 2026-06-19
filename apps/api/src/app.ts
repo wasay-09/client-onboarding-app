@@ -16,7 +16,7 @@ export function buildApp(config: Config, database: Database): FastifyInstance {
   const store = new CaseStore(database.db)
   const storage = createStorage(config)
   const service = new CaseService(store, storage)
-  registerCaseRoutes(app, service)
+  registerCaseRoutes(app, service, config.pdfServeMode)
 
   return app
 }

@@ -121,7 +121,13 @@ pnpm --filter api test    # API tests (pglite, in-process Postgres)
 ```
 
 To use real infrastructure, set `DATABASE_URL` (api — e.g. Supabase Postgres) and `VITE_API_URL`
-(web); both default to local. See `apps/api/.env.example`.
+(web); both default to local. With the `SUPABASE_*` env set, PDFs persist to Supabase Storage.
+See `apps/api/.env.example`.
+
+### Deploying
+
+To deploy on an Azure VM under `/onboarding` (behind nginx) with Supabase as the data layer,
+follow [`docs/DEPLOY.md`](docs/DEPLOY.md) — copy-paste nginx/systemd/env samples live in `deploy/`.
 
 ## 🗺️ Roadmap (Future Phases)
 

@@ -12,6 +12,11 @@ const config: Config = {
   pgliteDir: ':memory:', // fresh in-process Postgres per run
   storageDir: '.data/test-pdfs',
   webOrigin: '*',
+  // No Supabase env -> LocalPdfStorage; tests stay infra-free.
+  supabaseUrl: undefined,
+  supabaseServiceRoleKey: undefined,
+  supabaseBucket: undefined,
+  pdfServeMode: 'stream',
 }
 
 // Minimal valid answers for a 457(b): shared core + the 4 required contact fields.
@@ -74,9 +79,11 @@ describe('POST /api/cases', () => {
     // Survives a "refresh": reload purely from the API.
     const fetched = await app.inject({ method: 'GET', url: `/api/cases/${id}` })
     expect(fetched.statusCode).toBe(200)
-    const body = fetched.json<{ planType: string; answers: FormValues }>()
+    const body = fetched.json<{ planType: string; answers: FormValues; pdfHash: string }>()
     expect(body.planType).toBe('457b')
     expect(body.answers.companyName).toBe('Acme Widgets LLC')
+    // The canonical PDF's SHA-256 is recorded (audit-log prep).
+    expect(body.pdfHash).toMatch(/^[0-9a-f]{64}$/)
 
     // Server-made PDF served from storage.
     const pdf = await app.inject({ method: 'GET', url: pdfUrl })

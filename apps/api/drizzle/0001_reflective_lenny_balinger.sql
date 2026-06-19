@@ -1,0 +1,1 @@
+ALTER TABLE "cases" ADD COLUMN "pdf_hash" text;

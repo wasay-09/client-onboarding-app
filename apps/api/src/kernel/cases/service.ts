@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { getPlan, validate, type FieldError, type FormValues, type PlanType } from '@fbsi/shared'
 import type { Case } from '../../db/schema/kernel'
@@ -44,10 +45,12 @@ export class CaseService {
 
     const created = await this.store.create({ planType, answers })
 
-    // Canonical PDF is server-made, then stored.
+    // Canonical PDF is server-made, then stored. The SHA-256 hash is recorded for
+    // document integrity (Phase 4 audit log).
     const bytes = await renderOnboardingPackage(planType, answers)
+    const pdfHash = createHash('sha256').update(bytes).digest('hex')
     const key = await this.storage.put(`cases/${created.id}.pdf`, bytes)
-    await this.store.setPdfPath(created.id, key)
+    await this.store.setPdf(created.id, { pdfPath: key, pdfHash })
 
     return { id: created.id, pdfUrl: `/api/cases/${created.id}/pdf` }
   }
@@ -60,5 +63,13 @@ export class CaseService {
     const c = await this.store.get(id)
     if (!c?.pdfPath) return null
     return this.storage.get(c.pdfPath)
+  }
+
+  /** A short-lived signed URL to the stored PDF, when the storage backend supports
+   *  it (Supabase). Returns null for backends that can't (local) — caller streams. */
+  async getPdfSignedUrl(id: string, expiresInSeconds: number): Promise<string | null> {
+    const c = await this.store.get(id)
+    if (!c?.pdfPath || !this.storage.signedUrl) return null
+    return this.storage.signedUrl(c.pdfPath, expiresInSeconds)
   }
 }

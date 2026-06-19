@@ -1,0 +1,35 @@
+# systemd unit for the FBSI Onboarding API (Fastify via vite-node).
+# Install:
+#   sudo cp deploy/onboarding-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now onboarding-api
+#   systemctl status onboarding-api   # check it's running
+#
+# Adjust the three paths below for your VM:
+#   - User:             a non-login service account that owns the checkout
+#   - WorkingDirectory: the repo root on the VM
+#   - ExecStart:        absolute path to pnpm (run `which pnpm`; corepack puts it
+#                       in the node bin dir) and the node bin dir on PATH
+[Unit]
+Description=FBSI Onboarding API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=onboarding
+WorkingDirectory=/opt/onboarding/client-onboarding-app
+# Secrets (DATABASE_URL, SUPABASE_*, WEB_ORIGIN, ...) live here, NOT in the repo.
+EnvironmentFile=/etc/onboarding-api.env
+# Ensure the node bin dir is on PATH so vite-node resolves (edit to match `which node`).
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/pnpm --filter api start
+Restart=on-failure
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/onboarding/client-onboarding-app
+
+[Install]
+WantedBy=multi-user.target

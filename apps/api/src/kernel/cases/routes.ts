@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify'
 import { CaseService, ValidationError, createCaseSchema } from './service'
 
-export function registerCaseRoutes(app: FastifyInstance, service: CaseService): void {
+/** Signed-URL lifetime when PDF_SERVE_MODE=signed-url. */
+const SIGNED_URL_TTL_SECONDS = 300
+
+export function registerCaseRoutes(
+  app: FastifyInstance,
+  service: CaseService,
+  pdfServeMode: 'stream' | 'signed-url' = 'stream',
+): void {
   app.post('/api/cases', async (request, reply) => {
     const parsed = createCaseSchema.safeParse(request.body)
     if (!parsed.success) {
@@ -28,12 +35,23 @@ export function registerCaseRoutes(app: FastifyInstance, service: CaseService): 
       answers: c.answers,
       status: c.status,
       pdfUrl: `/api/cases/${c.id}/pdf`,
+      pdfHash: c.pdfHash,
       createdAt: c.createdAt,
     })
   })
 
   app.get('/api/cases/:id/pdf', async (request, reply) => {
     const { id } = request.params as { id: string }
+
+    // signed-url mode: hand the browser a short-lived URL straight to storage
+    // (saves API egress). Falls through to streaming if storage can't sign.
+    if (pdfServeMode === 'signed-url') {
+      const url = await service.getPdfSignedUrl(id, SIGNED_URL_TTL_SECONDS)
+      if (url) return reply.redirect(url)
+    }
+
+    // stream mode (default): proxy the bytes through the API so the PDF is served
+    // from our own origin.
     const bytes = await service.getPdf(id)
     if (!bytes) return reply.code(404).send({ error: 'not_found' })
     return reply
