@@ -1,0 +1,33 @@
+{
+  "name": "api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite-node --watch src/server.ts",
+    "start": "vite-node src/server.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.3",
+    "@fastify/cors": "^11.2.0",
+    "@fbsi/shared": "workspace:*",
+    "@react-pdf/renderer": "^4.5.1",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.5",
+    "postgres": "^3.4.9",
+    "react": "^19.2.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "~6.0.2",
+    "vite-node": "^6.0.0",
+    "vitest": "^4.1.9"
+  }
+}

@@ -22,7 +22,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The merge gate (invariant 9). Tests join here in Phase 2 (pnpm -r test).
+      # The merge gate (invariant 9).
       - run: pnpm -r typecheck
       - run: pnpm lint
       - run: pnpm -r build
+      - run: pnpm -r test

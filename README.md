@@ -110,6 +110,19 @@ To run the headless smoke test (validation + PDF render for every plan type):
 pnpm smoke
 ```
 
+### Backend API (Phase 2)
+
+The `apps/api` service persists submissions and renders the canonical PDF server-side. It runs with
+**zero configuration** locally (embedded pglite + local file storage):
+
+```bash
+pnpm --filter api dev     # http://localhost:3001
+pnpm --filter api test    # API tests (pglite, in-process Postgres)
+```
+
+To use real infrastructure, set `DATABASE_URL` (api — e.g. Supabase Postgres) and `VITE_API_URL`
+(web); both default to local. See `apps/api/.env.example`.
+
 ## 🗺️ Roadmap (Future Phases)
 
 1. **Additional Onboarding Forms**: Integration of Plan Setup, FBSI advisor/contact/payroll setup, fund line-up selection, and employee census imports.
