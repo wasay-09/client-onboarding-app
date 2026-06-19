@@ -30,10 +30,26 @@ export interface Config {
   /** The role assumed when authBypass is on, so local un-gated dev can reach the
    *  staff dashboard. Read ONLY on the bypass branch → no effect in a real deployment. */
   devUserRole: string
+  /** Number of trusted reverse-proxy hops in front of the API, so request.ip (recorded
+   *  in the signature audit log) is the real client. This must be a HOP COUNT, not a
+   *  boolean: with "trust all", request.ip is the left-most X-Forwarded-For token, which
+   *  the client controls (nginx APPENDS the real peer to the right). Trusting exactly N
+   *  hops makes request.ip the address the closest trusted proxy set — unspoofable. 1 in
+   *  the nginx deploy (Decision Log §195); 0 = off (direct exposure → use the socket IP). */
+  trustProxy: number
 }
 
 /** A stable, obviously-fake UUID used as the actor when AUTH_BYPASS is on. */
 const DEFAULT_DEV_USER_ID = '00000000-0000-4000-8000-000000000001'
+
+/** Parse TRUST_PROXY as a count of trusted proxy hops. `true` is accepted as 1 (a single
+ *  proxy) for convenience; anything non-positive/unset/garbage → 0 (off). A boolean "trust
+ *  all" is deliberately NOT supported — it would make request.ip client-spoofable. */
+function parseTrustProxy(raw: string | undefined): number {
+  if (raw === 'true') return 1
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : 0
+}
 
 export function loadConfig(): Config {
   const databaseUrl = process.env.DATABASE_URL || undefined
@@ -62,5 +78,6 @@ export function loadConfig(): Config {
     authBypass,
     devUserId: process.env.DEV_USER_ID || DEFAULT_DEV_USER_ID,
     devUserRole: process.env.DEV_USER_ROLE || 'admin',
+    trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   }
 }

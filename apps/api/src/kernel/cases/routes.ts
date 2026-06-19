@@ -18,7 +18,15 @@ export function registerCaseRoutes(
       return reply.code(400).send({ error: 'invalid_request', issues: parsed.error.issues })
     }
     try {
-      const result = await service.create(parsed.data, userId)
+      // Capture the signing act's request metadata for the ESIGN/UETA audit log. request.ip
+      // reflects the real client only when Fastify trustProxy is on (set behind nginx); see
+      // config.trustProxy + docs/DEPLOY.md. The signer's account email comes from the JWT.
+      const sign = {
+        ip: request.ip || null,
+        userAgent: request.headers['user-agent'] ?? null,
+        signerEmail: request.user?.email ?? null,
+      }
+      const result = await service.create(parsed.data, userId, sign)
       return reply.code(201).send(result)
     } catch (err) {
       if (err instanceof ValidationError) {
@@ -57,6 +65,8 @@ export function registerCaseRoutes(
     if (!c) return reply.code(404).send({ error: 'not_found' })
     // pdf_path/pdf_hash were promoted to the `document` table; the hash now comes from it.
     const pdfHash = await service.getOnboardingHash(id, userId)
+    // The finalized-signature record for this case (the tamper-evident, user-bound proof).
+    const signature = await service.getSignatureSummary(id, userId)
     return reply.send({
       id: c.id,
       planType: c.planType,
@@ -64,6 +74,7 @@ export function registerCaseRoutes(
       status: c.status,
       pdfUrl: `/api/cases/${c.id}/pdf`,
       pdfHash,
+      signature,
       createdAt: c.createdAt,
     })
   })

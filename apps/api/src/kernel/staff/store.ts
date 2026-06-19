@@ -4,6 +4,7 @@ import type { DB } from '../../db/client'
 import { withStaffScope } from '../../db/scope'
 import { cases, document, organization, party, plan, type Document } from '../../db/schema/kernel'
 import { findLatest } from '../documents'
+import { findEventsByCase } from '../signatures'
 
 export interface StaffCaseFilter {
   q?: string
@@ -116,7 +117,26 @@ export class StaffStore {
         .where(eq(document.caseId, id))
         .orderBy(desc(document.createdAt))
 
-      return { ...row, parties, documents }
+      // The full ESIGN/UETA audit trail — staff get the IP/user-agent/signer-account
+      // metadata the owner summary omits (read-only; the *_staff RLS policy is SELECT-only).
+      const events = await findEventsByCase(tx, id)
+      const signatureEvents = events.map((e) => ({
+        id: e.id,
+        eventType: e.eventType,
+        signerUserId: e.signerUserId,
+        signerName: e.signerName,
+        signerTitle: e.signerTitle,
+        signerEmail: e.signerEmail,
+        method: e.method,
+        consented: e.consented,
+        consentAt: e.consentAt,
+        documentSha256: e.documentSha256,
+        ip: e.ip,
+        userAgent: e.userAgent,
+        createdAt: e.createdAt,
+      }))
+
+      return { ...row, parties, documents, signatureEvents }
     })
   }
 

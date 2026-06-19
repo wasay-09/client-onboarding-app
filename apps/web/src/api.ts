@@ -112,6 +112,24 @@ export interface StaffDocument {
   createdAt: string
 }
 
+/** One row of the append-only ESIGN/UETA audit log (staff view — includes the IP/
+ *  user-agent metadata the owner summary omits). */
+export interface StaffSignatureEvent {
+  id: string
+  eventType: string
+  signerUserId: string
+  signerName: string | null
+  signerTitle: string | null
+  signerEmail: string | null
+  method: string
+  consented: boolean
+  consentAt: string | null
+  documentSha256: string
+  ip: string | null
+  userAgent: string | null
+  createdAt: string
+}
+
 export interface StaffCaseDetail {
   id: string
   planType: PlanType
@@ -125,6 +143,7 @@ export interface StaffCaseDetail {
   pdfHash: string | null
   parties: StaffParty[]
   documents: StaffDocument[]
+  signatureEvents: StaffSignatureEvent[]
 }
 
 export interface StaffCaseQuery {

@@ -6,11 +6,15 @@ import { createStorage } from './storage'
 import { registerAuth } from './auth/plugin'
 import { CaseService, CaseStore, registerCaseRoutes } from './kernel/cases'
 import { DocumentStore } from './kernel/documents'
+import { SignatureStore } from './kernel/signatures'
 import { StaffService, StaffStore, registerStaffRoutes } from './kernel/staff'
 
 /** Build the server, wiring kernel slices to the DB + storage. Tests inject a pglite db. */
 export function buildApp(config: Config, database: Database): FastifyInstance {
-  const app = Fastify({ logger: false })
+  // trustProxy: trust exactly N reverse-proxy hops so request.ip (recorded in the ESIGN
+  // audit log) is the real client. A HOP COUNT, never "trust all" — trusting all would let
+  // a client forge request.ip via X-Forwarded-For. 0 → false (off; use the socket IP).
+  const app = Fastify({ logger: false, trustProxy: config.trustProxy || false })
 
   app.register(cors, { origin: config.webOrigin === '*' ? true : config.webOrigin })
 
@@ -22,8 +26,9 @@ export function buildApp(config: Config, database: Database): FastifyInstance {
 
   const store = new CaseStore(database.db)
   const documents = new DocumentStore(database.db)
+  const signatures = new SignatureStore(database.db)
   const storage = createStorage(config)
-  const service = new CaseService(store, documents, storage)
+  const service = new CaseService(store, documents, signatures, storage)
   registerCaseRoutes(app, service, config.pdfServeMode)
 
   // Internal staff dashboard: cross-owner read of any case (role-gated in the routes).

@@ -29,6 +29,7 @@ const config: Config = {
   authBypass: false,
   devUserId: '00000000-0000-4000-8000-000000000001',
   devUserRole: 'admin',
+  trustProxy: 0,
 }
 
 // A distinct user per test so RLS-scoped counts stay isolated on the shared DB.

@@ -57,6 +57,13 @@
       "when": 1781899273812,
       "tag": "0007_drop_case_pdf_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781904581929,
+      "tag": "0008_bitter_apocalypse",
+      "breakpoints": true
     }
   ]
 }
