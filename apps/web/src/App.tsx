@@ -9,13 +9,14 @@ import {
 } from '@fbsi/shared'
 import { PlanPicker } from './components/PlanPicker'
 import { QuestionnaireForm } from './components/QuestionnaireForm'
+import { StaffDashboard } from './components/StaffDashboard'
 import { ApiError, createCase, getCase, getLatestCase, openCasePdf } from './api'
-import { useAuth } from './auth-context'
+import { useAuth, isStaffRole } from './auth-context'
 
 type Step = 'pick' | 'fill' | 'done'
 
 export default function App() {
-  const { authEnabled, email, signOut } = useAuth()
+  const { authEnabled, email, role, signOut } = useAuth()
   const [step, setStep] = useState<Step>('pick')
   const [planType, setPlanType] = useState<PlanType | null>(null)
   const [values, setValues] = useState<FormValues>({})
@@ -27,6 +28,17 @@ export default function App() {
   // Start "busy" when about to reload a case from the URL, so we don't flash the
   // picker. Lazy init keeps this setState out of the effect body.
   const [busy, setBusy] = useState(() => /case=[\w-]+/.test(window.location.hash))
+
+  // Lightweight hash routing for the internal staff dashboard — no router, mirroring the
+  // existing `case=<id>` hash convention. `#staff` shows the dashboard for staff/admin
+  // only; the `case=` reload effect below is inert on it (no `case=` to match).
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const showStaff = hash.startsWith('#staff') && isStaffRole(role)
 
   // Reload a previously submitted case from the API (survives a browser refresh).
   useEffect(() => {
@@ -130,6 +142,19 @@ export default function App() {
             <span>Client Portal</span>
             <span className="h-3 w-px bg-slate-200" />
             <span className="text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 font-bold">Phase 2</span>
+            {isStaffRole(role) && (
+              <>
+                <span className="h-3 w-px bg-slate-200" />
+                <button
+                  onClick={() => {
+                    window.location.hash = showStaff ? '' : 'staff'
+                  }}
+                  className={`font-bold transition-colors ${showStaff ? 'text-accent' : 'text-slate-400 hover:text-navy'}`}
+                >
+                  {showStaff ? 'Portal' : 'Staff'}
+                </button>
+              </>
+            )}
             {authEnabled && email && (
               <>
                 <span className="h-3 w-px bg-slate-200" />
@@ -150,9 +175,11 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1">
-        {step === 'pick' && <PlanPicker onSelect={pickPlan} />}
+        {showStaff && <StaffDashboard onExit={() => { window.location.hash = '' }} />}
 
-        {step === 'fill' && planType && (
+        {!showStaff && step === 'pick' && <PlanPicker onSelect={pickPlan} />}
+
+        {!showStaff && step === 'fill' && planType && (
           <QuestionnaireForm
             planType={planType}
             initialValues={initialValues}
@@ -161,7 +188,7 @@ export default function App() {
           />
         )}
 
-        {step === 'done' && planType && (
+        {!showStaff && step === 'done' && planType && (
           <div className="mx-auto max-w-3xl px-4 py-16 animate-fadeIn">
             <div className="rounded-3xl border border-slate-200/80 bg-white p-8 md:p-12 shadow-lg text-center relative overflow-hidden">
               {/* Background gradient blur */}

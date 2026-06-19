@@ -27,6 +27,9 @@ export interface Config {
   authBypass: boolean
   /** The user id assumed when authBypass is on. */
   devUserId: string
+  /** The role assumed when authBypass is on, so local un-gated dev can reach the
+   *  staff dashboard. Read ONLY on the bypass branch → no effect in a real deployment. */
+  devUserRole: string
 }
 
 /** A stable, obviously-fake UUID used as the actor when AUTH_BYPASS is on. */
@@ -58,5 +61,6 @@ export function loadConfig(): Config {
     supabaseJwtSecret: process.env.SUPABASE_JWT_SECRET || undefined,
     authBypass,
     devUserId: process.env.DEV_USER_ID || DEFAULT_DEV_USER_ID,
+    devUserRole: process.env.DEV_USER_ROLE || 'admin',
   }
 }

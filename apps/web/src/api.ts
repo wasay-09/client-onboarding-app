@@ -75,3 +75,88 @@ export async function getLatestCase(): Promise<LoadedCase | null> {
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
   return res.json()
 }
+
+// ── Staff dashboard (internal, role-gated by the API) ────────────────────────
+
+export interface StaffCaseRow {
+  id: string
+  planType: PlanType
+  status: string
+  createdAt: string
+  orgName: string
+  ein: string | null
+  planName: string | null
+  ownerId: string | null
+}
+
+export interface StaffCaseList {
+  rows: StaffCaseRow[]
+  total: number
+}
+
+export interface StaffParty {
+  id: string
+  role: string
+  name: string | null
+  email: string | null
+  phone: string | null
+  title: string | null
+  isAuthorizedSigner: boolean | null
+}
+
+export interface StaffDocument {
+  id: string
+  type: string
+  sha256: string | null
+  signedAt: string | null
+  createdAt: string
+}
+
+export interface StaffCaseDetail {
+  id: string
+  planType: PlanType
+  status: string
+  createdAt: string
+  answers: FormValues
+  orgName: string
+  ein: string | null
+  planName: string | null
+  pdfUrl: string
+  pdfHash: string | null
+  parties: StaffParty[]
+  documents: StaffDocument[]
+}
+
+export interface StaffCaseQuery {
+  q?: string
+  planType?: string
+  status?: string
+  limit?: number
+  offset?: number
+}
+
+export async function listStaffCases(params: StaffCaseQuery = {}): Promise<StaffCaseList> {
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') qs.set(k, String(v))
+  }
+  const res = await fetch(`${API_URL}/api/staff/cases?${qs.toString()}`, { headers: await authHeaders() })
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  return res.json()
+}
+
+export async function getStaffCase(id: string): Promise<StaffCaseDetail> {
+  const res = await fetch(`${API_URL}/api/staff/cases/${id}`, { headers: await authHeaders() })
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  return res.json()
+}
+
+/** Open a case's server-made PDF in a new tab. Like openCasePdf, a fetch-to-blob is
+ *  needed because the bearer token can't ride a plain <a href>. */
+export async function openStaffCasePdf(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/staff/cases/${id}/pdf`, { headers: await authHeaders() })
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  const url = URL.createObjectURL(await res.blob())
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
