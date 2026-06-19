@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import type { PlanType } from './types'
-import type { FormValues } from './schema/visibility'
-import { getPlan } from './schema/plans'
-import { PlanPicker } from './components/PlanPicker'
-import { QuestionnaireForm } from './components/QuestionnaireForm'
+import type { PlanType, FormValues } from '@fbsi/shared'
 import {
+  getPlan,
   downloadQuestionnairePdf,
   downloadServiceAgreementPdf,
   downloadOnboardingPackagePdf,
   hasSla,
-} from './pdf/generatePdf'
+} from '@fbsi/shared'
+import { PlanPicker } from './components/PlanPicker'
+import { QuestionnaireForm } from './components/QuestionnaireForm'
 
 type Step = 'pick' | 'fill' | 'done'
 

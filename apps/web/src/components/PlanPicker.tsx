@@ -1,5 +1,5 @@
-import type { PlanType } from '../types'
-import { PLANS } from '../schema/plans'
+import type { PlanType } from '@fbsi/shared'
+import { PLANS } from '@fbsi/shared'
 
 interface Props {
   onSelect: (type: PlanType) => void

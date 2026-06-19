@@ -1,8 +1,7 @@
-import type { PlanType } from '../types'
-import type { FormValues } from '../schema/visibility'
+import type { PlanType, FormValues } from '@fbsi/shared'
 import {
   ARTICLES, feeHighlights, getSlaFees, parseSlaDate, selectSlaTemplate,
-} from '../pdf/serviceAgreementContent'
+} from '@fbsi/shared'
 
 interface Props {
   planType: PlanType

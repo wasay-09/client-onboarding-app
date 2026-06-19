@@ -20,25 +20,32 @@ This is Phase 1 of a larger client onboarding product.
 
 ## 🛠️ Architecture
 
-The codebase leverages a single source-of-truth definition for every questionnaire section and field under `src/schema/`.
+The codebase is a **pnpm-workspace monorepo**. Every questionnaire section and field is declared once in `packages/shared` (published as `@fbsi/shared`) and imported by the web app via the package root.
 
 ```
-src/
-  ├── types.ts                # TypeScript interfaces (FieldDef, SectionDef, PlanType)
+packages/shared/                    # @fbsi/shared — single source of truth (web, scripts, future api)
+  ├── index.ts                      # Barrel: the public surface consumers import
+  ├── types.ts                      # TypeScript interfaces (FieldDef, SectionDef, PlanType)
   ├── schema/
-  │   ├── plans.ts            # Defines plans and maps them to their respective sections
-  │   ├── sharedCore.ts       # Shared core sections (28 fields common to all plans)
-  │   ├── designConsiderations.ts # Detailed 401k/403b sections (~38 fields)
-  │   └── visibility.ts       # Shared form/PDF visibility, validation, and display rules
-  ├── components/
-  │   ├── PlanPicker.tsx      # Step 1: Select plan type
-  │   ├── QuestionnaireForm.tsx # Step 2: Multi-section form wizard (using React Hook Form)
-  │   └── fields/
-  │       └── Field.tsx       # Reusable renderer for input types (text, radio, yesno, date, etc.)
-  ├── pdf/
-  │   ├── QuestionnairePdf.tsx # Layout definition for the PDF report using @react-pdf/renderer
-  │   └── generatePdf.tsx      # Handles document build and local download trigger
-  └── App.tsx                 # Main application shell coordinating step progression
+  │   ├── plans.ts                  # Defines plans and maps them to their respective sections
+  │   ├── sharedCore.ts             # Shared core sections (28 fields common to all plans)
+  │   ├── designConsiderations.ts   # Detailed 401k/403b sections (~38 fields)
+  │   ├── operational.ts            # Plan setup, contacts, payroll, advisor, funds sections
+  │   ├── solo.ts                   # Solo 401(k) extra section
+  │   └── visibility.ts             # Shared form/PDF visibility, validation, and display rules
+  └── pdf/
+      ├── QuestionnairePdf.tsx      # Onboarding summary PDF (@react-pdf/renderer)
+      ├── ServiceAgreementPdf.tsx   # Service agreement PDF
+      ├── OnboardingPackagePdf.tsx  # Combined onboarding package PDF
+      ├── serviceAgreementContent.ts # SLA articles, fees, templates
+      └── generatePdf.tsx           # Document build + local download trigger
+apps/web/                           # React + Vite app (imports @fbsi/shared)
+  └── src/
+      ├── components/
+      │   ├── PlanPicker.tsx        # Step 1: Select plan type
+      │   ├── QuestionnaireForm.tsx # Step 2: Multi-section form wizard (React Hook Form)
+      │   └── fields/Field.tsx      # Reusable renderer for input types
+      └── App.tsx                   # Main application shell coordinating step progression
 ```
 
 ### Dynamic Conditional Visibility
@@ -47,7 +54,7 @@ Conditional fields use a `showWhen: { field, equals }` property. If a field's co
 2. Excluded from validation.
 3. Omitted from the final generated PDF.
 
-The logic is centralized in `src/schema/visibility.ts`, ensuring that the form UI and generated PDF stay 100% in sync.
+The logic is centralized in `packages/shared/schema/visibility.ts`, ensuring that the form UI and generated PDF stay 100% in sync.
 
 ### "Other" Custom Inputs
 For radio options allowing custom responses (`allowOther: true`), the field automatically generates a text field stored as `<name>__other`. The application handles resolving and rendering this selection cleanly in both the form and PDF.
@@ -64,8 +71,8 @@ For radio options allowing custom responses (`allowOther: true`), the field auto
 
 ### Prerequisites
 
-- Node.js (v18 or higher recommended)
-- npm (v9 or higher recommended)
+- Node.js (v20 or higher recommended)
+- pnpm (v10 or higher) — install with `npm install -g pnpm` or via Corepack
 
 ### Installation
 
@@ -75,27 +82,32 @@ For radio options allowing custom responses (`allowOther: true`), the field auto
    cd client-onboarding-app
    ```
 
-2. Install dependencies:
+2. Install dependencies (all workspaces):
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. Run the development server:
    ```bash
-   npm run dev
+   pnpm dev
    ```
    Open `http://localhost:5173` in your browser.
 
 ### Build and Lint
 
-To build the static application for production:
+To build all workspaces for production:
 ```bash
-npm run build
+pnpm build
 ```
 
-To run the ESLint checks:
+To run the ESLint checks (whole repo):
 ```bash
-npm run lint
+pnpm lint
+```
+
+To run the headless smoke test (validation + PDF render for every plan type):
+```bash
+pnpm smoke
 ```
 
 ## 🗺️ Roadmap (Future Phases)

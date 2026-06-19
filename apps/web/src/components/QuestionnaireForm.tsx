@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
-import type { PlanType, SectionDef } from '../types'
-import { getPlan } from '../schema/plans'
-import { indexFields, isSectionVisible, isVisible, validate } from '../schema/visibility'
-import type { FormValues } from '../schema/visibility'
-import { hasSla } from '../pdf/serviceAgreementContent'
-import { downloadServiceAgreementPdf } from '../pdf/generatePdf'
+import type { PlanType, SectionDef, FormValues } from '@fbsi/shared'
+import {
+  getPlan,
+  indexFields,
+  isSectionVisible,
+  isVisible,
+  validate,
+  hasSla,
+  downloadServiceAgreementPdf,
+} from '@fbsi/shared'
 import { ServiceAgreementText } from './ServiceAgreementText'
 import { SignaturePad } from './SignaturePad'
 import { Field } from './fields/Field'

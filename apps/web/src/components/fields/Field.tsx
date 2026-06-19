@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useFormContext } from 'react-hook-form'
-import type { FieldDef, TableColumn, TableRow } from '../../types'
-import { OTHER_VALUE, otherFieldName } from '../../types'
-import { parseTable, serializeTable } from '../../schema/visibility'
+import type { FieldDef, TableColumn, TableRow } from '@fbsi/shared'
+import { OTHER_VALUE, otherFieldName, parseTable, serializeTable } from '@fbsi/shared'
 
 interface Props {
   field: FieldDef
