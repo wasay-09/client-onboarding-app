@@ -31,13 +31,15 @@ const config: Config = {
   authBypass: false,
   devUserId: '00000000-0000-4000-8000-000000000001',
   devUserRole: 'admin',
-  // ON so the audit log captures the real client IP from X-Forwarded-For (nginx deploy).
-  trustProxy: true,
+  // Trust 1 proxy hop (the nginx deploy) so the audit log captures the IP the proxy set —
+  // NOT a client-spoofed X-Forwarded-For value. See the IP-capture assertion below.
+  trustProxy: 1,
 }
 
 const USER_A = '11111111-1111-1111-1111-111111111111'
 const USER_B = '22222222-2222-2222-2222-222222222222'
-const SIGNER_IP = '203.0.113.7'
+const SIGNER_IP = '203.0.113.7' // the real peer the proxy (nginx) appends — the truth
+const SPOOFED_IP = '8.8.8.8' // an attacker-supplied X-Forwarded-For prefix — must be ignored
 const SIGNER_UA = 'Mozilla/5.0 (SignatureTest)'
 
 async function tokenFor(sub: string, email: string): Promise<string> {
@@ -167,7 +169,9 @@ async function submit(planType: string, answers: FormValues, token: string) {
   return app.inject({
     method: 'POST',
     url: '/api/cases',
-    headers: { ...bearer(token), 'x-forwarded-for': SIGNER_IP, 'user-agent': SIGNER_UA },
+    // Simulate the production header shape: <attacker-supplied prefix>, <nginx-appended peer>.
+    // trustProxy: 1 must take the right-most (proxy-set) hop, not the spoofable left one.
+    headers: { ...bearer(token), 'x-forwarded-for': `${SPOOFED_IP}, ${SIGNER_IP}`, 'user-agent': SIGNER_UA },
     payload: { planType, answers },
   })
 }
@@ -238,7 +242,9 @@ describe('SLA signature finalization (401k)', () => {
       expect(e.signerUserId).toBe(USER_A)
       expect(e.signerEmail).toBe('jane@acme.com')
       expect(e.documentSha256).toBe(pdfHash)
-      expect(e.ip).toBe(SIGNER_IP) // captured via trustProxy from X-Forwarded-For
+      // The proxy-set peer is recorded, NOT the attacker-supplied X-Forwarded-For prefix.
+      expect(e.ip).toBe(SIGNER_IP)
+      expect(e.ip).not.toBe(SPOOFED_IP)
       expect(e.userAgent).toBe(SIGNER_UA)
     }
   })

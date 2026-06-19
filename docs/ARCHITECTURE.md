@@ -244,11 +244,13 @@ Concise, dated rationale so decisions don't silently erode. Graduate to `docs/ad
   complete the ESIGN/UETA §7 set. The document + its audit event(s) are written in **one
   `withUserScope` tx** (atomic); an `sla_signature` also stamps `document.signed_at` (a
   certification leaves it null — it attests data, it isn't an executed agreement). RLS:
-  `*_by_org` (owner) + `*_staff` (`FOR SELECT`). **`TRUST_PROXY`** (Fastify `trustProxy`,
-  ON behind nginx, OFF when exposed directly) makes the audited IP the real client, not the
-  loopback, without letting a direct caller spoof it. Owners see a `signature` summary on
-  `GET /cases/:id` (no IP/UA); staff see the full trail. See
-  `specs/2026-06-signature-finalization.md`.
+  `*_by_org` (owner) + `*_staff` (`FOR SELECT`). **`TRUST_PROXY`** is a **count of trusted
+  proxy hops** (1 behind nginx; 0 = off), NOT a boolean "trust all" — trusting all hops
+  makes `request.ip` the left-most, client-controlled `X-Forwarded-For` token (nginx appends
+  the real peer to the right), so a client could forge the audited IP; trusting exactly N
+  hops makes it the address the closest trusted proxy set (caught + fixed in
+  `/security-review`). Owners see a `signature` summary on `GET /cases/:id` (no IP/UA); staff
+  see the full trail. See `specs/2026-06-signature-finalization.md`.
 
 ---
 

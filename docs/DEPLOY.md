@@ -76,8 +76,10 @@ sudo chmod 600 /etc/onboarding-api.env
 ```
 
 Set `WEB_ORIGIN=https://<your-domain>` (defense-in-depth) and leave `PDF_SERVE_MODE=stream`.
-Keep `TRUST_PROXY=1`: the API sits behind nginx, which already forwards `X-Forwarded-For`,
-so this lets the **signature audit log** record the real client IP instead of the loopback.
+Keep `TRUST_PROXY=1`: it is the **number of trusted proxy hops** (one nginx, which already
+forwards `X-Forwarded-For`), so the **signature audit log** records the real client IP, not
+the loopback. It is a hop count, not "trust all" — trusting all hops would let a client
+forge its IP via a spoofed `X-Forwarded-For`. Bump it only if you add another proxy.
 
 ---
 

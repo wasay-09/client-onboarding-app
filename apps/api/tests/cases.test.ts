@@ -25,7 +25,7 @@ const config: Config = {
   authBypass: false,
   devUserId: '00000000-0000-4000-8000-000000000001',
   devUserRole: 'admin',
-  trustProxy: false,
+  trustProxy: 0,
 }
 
 const USER_A = '11111111-1111-1111-1111-111111111111'

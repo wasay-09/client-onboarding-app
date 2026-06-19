@@ -11,9 +11,10 @@ import { StaffService, StaffStore, registerStaffRoutes } from './kernel/staff'
 
 /** Build the server, wiring kernel slices to the DB + storage. Tests inject a pglite db. */
 export function buildApp(config: Config, database: Database): FastifyInstance {
-  // trustProxy: read the real client IP from X-Forwarded-For behind nginx, for the ESIGN
-  // audit log. OFF locally so a direct caller can't spoof request.ip. See config.trustProxy.
-  const app = Fastify({ logger: false, trustProxy: config.trustProxy })
+  // trustProxy: trust exactly N reverse-proxy hops so request.ip (recorded in the ESIGN
+  // audit log) is the real client. A HOP COUNT, never "trust all" — trusting all would let
+  // a client forge request.ip via X-Forwarded-For. 0 → false (off; use the socket IP).
+  const app = Fastify({ logger: false, trustProxy: config.trustProxy || false })
 
   app.register(cors, { origin: config.webOrigin === '*' ? true : config.webOrigin })
 

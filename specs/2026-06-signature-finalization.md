@@ -50,11 +50,16 @@ called "signature-workflow prep").
 - **Identity + request capture:** `signer_user_id` = the verified `request.user.id`;
   `signer_email` = the JWT email; `ip` = `request.ip`; `user_agent` = the request header.
 
-### 3. `TRUST_PROXY` so the audit IP is real (`config.ts`, `app.ts`, deploy)
-- **What:** New `TRUST_PROXY` env → Fastify `trustProxy`. ON in the nginx deploy (which
-  already forwards `X-Forwarded-For`/`X-Real-IP`), so `request.ip` is the real client, not
-  the loopback. OFF locally/when the API is exposed directly, so a caller can't spoof its
-  own IP. Added to `deploy/onboarding-api.env.example` + a `docs/DEPLOY.md` Step-3 note.
+### 3. `TRUST_PROXY` so the audit IP is real *and* unspoofable (`config.ts`, `app.ts`, deploy)
+- **What:** New `TRUST_PROXY` env → Fastify `trustProxy` as a **count of trusted proxy
+  hops** (1 behind nginx; 0/unset = off, use the socket IP). A hop count, deliberately
+  **not** a boolean "trust all": with trust-all, `request.ip` is the left-most
+  `X-Forwarded-For` token, which the client controls (nginx *appends* the real peer to the
+  right), so an attacker could forge the audited IP. Trusting exactly N hops makes
+  `request.ip` the address the closest trusted proxy set — unspoofable. (This hop-count
+  form was the fix for a `/security-review` finding on the initial boolean version.) Added
+  to `deploy/onboarding-api.env.example` + a `docs/DEPLOY.md` Step-3 note; covered by a
+  spoof-resistance assertion in `signatures.test.ts`.
 
 ### 4. Reading the record (owner + staff)
 - **Owner** (`GET /api/cases/:id`): a new `signature` summary — `{ signed, events: [{
